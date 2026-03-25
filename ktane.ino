@@ -1,53 +1,117 @@
 /*
-Ultrasonic connected to plug D4 (d4+d5)
-Chainable RGB LED connected to plug D8 (d8+d9)
-Vibration sensor connected to plug A0 (a0+a1)
-LED button conencted to plug D6
+  BOMB DEFUSAL - FREQUENCY SCRAMBLER (Simplified)
+  LED bar - D2
+	Encoder (left) - D5
+	Encoder (right) - D7
+
+	Packages used
+	Encoder - Paul Stoffregen (v1.4.4)
 */
 
+#include <Grove_LED_Bar.h>
+#include <Encoder.h> 
 
-#include "Ultrasonic.h"
-#include <ChainableLED.h>
-#include "Vibration.h"
+// --- HARDWARE ---
+Grove_LED_Bar ledBar(3, 2, 0); // Clock, Data, Green-to-Red
+Encoder encLeft(5, 6);
+Encoder encRight(7, 8);
 
-const int buttonPin = 7;
-// Initialize the ChainableLED object
-// Syntax: ChainableLED(clock_pin, data_pin, number_of_leds)
-ChainableLED leds(8, 9, 2);
+// --- CONFIGURATION ---
+struct ComboStep {
+  char encoder; 
+  int direction; // 1 = CW, -1 = CCW
+  int clicks;
+};
 
-// Initialise the vibration sensor on pin A0
-VibrationSensor VBS(A0);
+ComboStep combination[] = {
+  {'L', 1, 3},  // Left 3 Right
+  {'R', -1, 2}, // Right 2 Left
+  {'L', -1, 2}  // Left 2 Left
+};
 
-Ultrasonic ultrasonic(4);
+// --- STATE VARIABLES ---
+int currentStep = 0;
+const int totalSteps = 3;
+int clicksInCurrentStep = 0;
+long lastLeftPos, lastRightPos;
 
-void setup()
-{
-	pinMode(buttonPin, INPUT);
-	leds.setColorRGB(1, 0, 255, 0);
+unsigned long lastMoveTime = 0;   // Tracks when the knob was last turned
+const int confirmDelay = 500;     // 0.5 seconds pause required
+bool frequencyModuleSolved = false;
+
+void setup() {
+  Serial.begin(9600);
+  ledBar.begin();
+  updateFrequencyDisplay();
+  Serial.println("System Ready. Start turning...");
 }
 
-bool triggered = false;
+void loop() {
+  if (!frequencyModuleSolved) {
+    runFrequencyModule();
+  }
+}
 
-void loop()
-{
-	long distance = ultrasonic.MeasureInCentimeters();
-	Serial.println(distance);
+void runFrequencyModule() {
+  long currLeft = encLeft.read() / 4;  
+  long currRight = encRight.read() / 4;
+  ComboStep target = combination[currentStep];
 
-	// Measure vibrations for 50ms. Pauses loop during check, so acts as the delay
-	VBS.measure(50);
+  // 1. SENSE MOVEMENT
+  bool moved = false;
+  int moveDir = 0;
 
-	if (distance > 20) {
-		leds.setColorRGB(0, 0, 255, 0);
-	} else {
-		leds.setColorRGB(0, 255, 0, 0);
-	}
+  if (target.encoder == 'L' && currLeft != lastLeftPos) {
+    moveDir = (currLeft > lastLeftPos) ? 1 : -1;
+    moved = true;
+    lastLeftPos = currLeft;
+  } 
+  else if (target.encoder == 'R' && currRight != lastRightPos) {
+    moveDir = (currRight > lastRightPos) ? 1 : -1;
+    moved = true;
+    lastRightPos = currRight;
+  }
 
-	if (VBS.zeroCount() > 1 || triggered == true) {
-		triggered = true;
-		leds.setColorRGB(1, 255, 0, 0);
-	}
+  // 2. PROCESS MOVEMENT
+  if (moved) {
+    lastMoveTime = millis(); // Reset the timer every time they turn
+    
+    if (moveDir == target.direction) {
+      clicksInCurrentStep++;
+      Serial.print("Click: "); Serial.println(clicksInCurrentStep);
+    } else {
+      clicksInCurrentStep = 0; // Penalty: Reset clicks if turned wrong way
+      Serial.println("WRONG DIRECTION - RESET STEP");
+    }
+  }
 
-	if (digitalRead(buttonPin) == HIGH) {
-		triggered = false;
-	}
- }
+  // 3. THE "PAUSE TO CONFIRM" LOGIC
+  // If we have enough clicks AND the user has stopped moving for 500ms
+  if (clicksInCurrentStep >= target.clicks && (millis() - lastMoveTime > confirmDelay)) {
+    currentStep++;
+    clicksInCurrentStep = 0;
+    
+    Serial.print("Step "); Serial.print(currentStep); Serial.println(" CONFIRMED");
+    updateFrequencyDisplay();
+
+    if (currentStep >= totalSteps) {
+      frequencyModuleSolved = true;
+      flashSuccess();
+    }
+  }
+}
+
+void updateFrequencyDisplay() {
+  // LED Bar shows progress: 10 (full) down to 1 (final stage)
+  int displayLevel = map(currentStep, 0, totalSteps, 10, 1);
+  ledBar.setLevel(displayLevel);
+}
+
+void flashSuccess() {
+  Serial.println("SOLVED!");
+  for (int i = 0; i < 4; i++) {
+    ledBar.setLevel(10); delay(150);
+    ledBar.setLevel(0);  delay(150);
+  }
+  ledBar.setLevel(10);
+}
