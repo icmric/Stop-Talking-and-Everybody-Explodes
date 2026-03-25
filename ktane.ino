@@ -6,15 +6,33 @@
 
 	Packages used
 	Encoder - Paul Stoffregen (v1.4.4)
+
+  CORE OVERHEATING MODULE
+  DHT11 Temp Sensor - D4     
+  LCD 16x2 I2C      - SDA/SCL
+  Packages used
+    DHT sensor library - Adafruit
+    LiquidCrystal_I2C  - Frank de Brabander
 */
 
 #include <Grove_LED_Bar.h>
-#include <Encoder.h> 
-
+#include <Encoder.h>
+#include <DHT.h>
+#include <LiquidCrystal_I2C.h>
+//
 // --- HARDWARE ---
 Grove_LED_Bar ledBar(3, 2, 0); // Clock, Data, Green-to-Red
 Encoder encLeft(5, 6);
 Encoder encRight(7, 8);
+// --- CORE OVERHEATING: Hardware ---
+#define DHT_PIN  4
+#define DHT_TYPE DHT11
+//change to DHT22 if its that sensor
+DHT dht(DHT_PIN, DHT_TYPE);
+LiquidCrystal_I2C lcd(0x27, 16, 2); // change 0x27 to 0x3F if LCD doesn't show
+
+// --- CORE OVERHEATING: Config ---
+const float COOL_BY = 2.0; // degrees C the user must reduce by blowing
 
 // --- CONFIGURATION ---
 struct ComboStep {
@@ -44,6 +62,10 @@ void setup() {
   ledBar.begin();
   updateFrequencyDisplay();
   Serial.println("System Ready. Start turning...");
+
+  lcd.init();
+  lcd.backlight();
+  dht.begin();
 }
 
 void loop() {
@@ -114,4 +136,43 @@ void flashSuccess() {
     ledBar.setLevel(0);  delay(150);
   }
   ledBar.setLevel(10);
+}
+
+void coreOverheating() {
+  // Snapshot starting temperature
+  float startTemp = dht.readTemperature();
+  if (isnan(startTemp)) return; // sensor failure - kills, so game doesn't break
+
+  float targetTemp = startTemp - COOL_BY;
+
+  // Display warning
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("CORE OVERHEAT!");
+  lcd.setCursor(0, 1);
+  lcd.print("BLOW TO COOL");
+
+  // Loop until temp drops enough
+  while (true) {
+    float currentTemp = dht.readTemperature();
+
+    if (!isnan(currentTemp)) {
+      // Live temp readout on bottom row
+      lcd.setCursor(0, 1);
+      lcd.print("TEMP: ");
+      lcd.print(currentTemp, 1); // 1 decimal place
+      lcd.print("C   ");         // trailing spaces clear leftover characters
+
+      if (currentTemp <= targetTemp) break;
+    }
+
+    delay(500); 
+  }
+
+  // Show cleared message then wipe LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("CORE STABLE");
+  delay(1500);
+  lcd.clear();
 }
