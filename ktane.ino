@@ -32,7 +32,8 @@ DHT dht(DHT_PIN, DHT_TYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // change 0x27 to 0x3F if LCD doesn't show
 
 // --- CORE OVERHEATING: Config ---
-const float COOL_BY = 2.0; // degrees C the user must reduce by blowing
+const float HUMIDITY_THRESHOLD = 90.0; // % humidity required to cool the core
+const unsigned long BLOW_DURATION = 10000; // ms humidity must stay above threshold
 
 // --- CONFIGURATION ---
 struct ComboStep {
@@ -66,11 +67,8 @@ void setup() {
   lcd.init();
   lcd.backlight();
   dht.begin();
-// Added to initialise lastLeftPos and lastRightPos at startup.
-// Without this, the first movement of the encoders could register as a huge jump 
-// because lastLeftPos/lastRightPos would start at 0. 
-// This would cause the first step clicks to count incorrectly, potentially 
-// resetting the step immediately or misaligning the combination sequence.
+// Added to initialise lastLeftPos and lastRightPos at startup. Without this, the first movement of the encoders could register as a huge jump 
+// because lastLeftPos/lastRightPos would start at 0. This would cause the first step clicks to count incorrectly, potentially resetting the step immediately or misaligning the combination sequence.
   lastLeftPos = encLeft.read() / 4;
   lastRightPos = encRight.read() / 4;
   Serial.println("System Ready. Start turning...");
@@ -147,16 +145,6 @@ void flashSuccess() {
 }
 
 void coreOverheating() {
-  // Snapshot starting temperature
-  float startTemp = dht.readTemperature();
-  if (isnan(startTemp)) {
-  delay(1500);
-  startTemp = dht.readTemperature();
-  if (isnan(startTemp)) return;
-} // sensor failure - kills, so it doesn't break, delay gives it a chance
-
-  float targetTemp = startTemp - COOL_BY;
-
   // Display warning
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -164,21 +152,50 @@ void coreOverheating() {
   lcd.setCursor(0, 1);
   lcd.print("BLOW TO COOL");
 
-  // Loop until temp drops enough
+  unsigned long blowStart    = 0;     // tracks when continuous blowing started
+  unsigned long lastDHTRead  = 0;     // tracks last DHT sensor read
+  bool blowing = false;
+
+  // Loop until humidity stays above threshold for BLOW_DURATION ms
   while (true) {
-    float currentTemp = dht.readTemperature();
+    unsigned long now = millis();
 
-    if (!isnan(currentTemp)) {
-      // Live temp readout on bottom row
-      lcd.setCursor(0, 1);
-      lcd.print("TEMP: ");
-      lcd.print(currentTemp, 1); // 1 decimal place
-      lcd.print("C   ");         // trailing spaces clear leftover characters
+    // sensor can't sample faster than 1Hz
+    if (now - lastDHTRead >= 1200) {
+      lastDHTRead = now;
+      float humidity = dht.readHumidity();
 
-      if (currentTemp <= targetTemp) break;
+      if (!isnan(humidity)) {
+        if (humidity >= HUMIDITY_THRESHOLD) {
+          if (!blowing) {
+            blowing = true;
+            blowStart = millis(); // start the timer when blowing begins
+          }
+        } else {
+          if (blowing) {
+            // They stopped — reset and tell them
+            blowing = false;
+            lcd.setCursor(0, 1);
+            lcd.print("BLOW TO COOL    ");
+          }
+        }
+      }
     }
 
-    delay(1200); 
+    // Update countdown display every loop regardless of DHT read
+    if (blowing) {
+      int secondsLeft = (BLOW_DURATION - (millis() - blowStart)) / 1000 + 1;
+      lcd.setCursor(0, 1);
+      lcd.print("KEEP BLOWING: ");
+      lcd.print(secondsLeft);
+      lcd.print("s ");
+
+      if (millis() - blowStart >= BLOW_DURATION) {
+        break; // held above threshold long enough — done
+      }
+    }
+
+    delay(200); // LCD updates
   }
 
   // Show cleared message then wipe LCD
