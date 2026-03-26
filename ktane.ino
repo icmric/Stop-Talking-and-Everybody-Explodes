@@ -27,7 +27,7 @@ Encoder encRight(7, 8);
 // --- CORE OVERHEATING: Hardware ---
 #define DHT_PIN  4
 #define DHT_TYPE DHT11
-//change to DHT22 if its that sensor
+
 DHT dht(DHT_PIN, DHT_TYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // change 0x27 to 0x3F if LCD doesn't show
 
@@ -61,11 +61,19 @@ void setup() {
   Serial.begin(9600);
   ledBar.begin();
   updateFrequencyDisplay();
-  Serial.println("System Ready. Start turning...");
+ 
 
   lcd.init();
   lcd.backlight();
   dht.begin();
+// Added to initialise lastLeftPos and lastRightPos at startup.
+// Without this, the first movement of the encoders could register as a huge jump 
+// because lastLeftPos/lastRightPos would start at 0. 
+// This would cause the first step clicks to count incorrectly, potentially 
+// resetting the step immediately or misaligning the combination sequence.
+  lastLeftPos = encLeft.read() / 4;
+  lastRightPos = encRight.read() / 4;
+  Serial.println("System Ready. Start turning...");
 }
 
 void loop() {
@@ -141,7 +149,11 @@ void flashSuccess() {
 void coreOverheating() {
   // Snapshot starting temperature
   float startTemp = dht.readTemperature();
-  if (isnan(startTemp)) return; // sensor failure - kills, so game doesn't break
+  if (isnan(startTemp)) {
+  delay(1500);
+  startTemp = dht.readTemperature();
+  if (isnan(startTemp)) return;
+} // sensor failure - kills, so it doesn't break, delay gives it a chance
 
   float targetTemp = startTemp - COOL_BY;
 
@@ -166,7 +178,7 @@ void coreOverheating() {
       if (currentTemp <= targetTemp) break;
     }
 
-    delay(500); 
+    delay(1200); 
   }
 
   // Show cleared message then wipe LCD
