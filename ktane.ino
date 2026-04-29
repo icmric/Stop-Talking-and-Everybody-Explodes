@@ -50,6 +50,8 @@ const int DISP_DIO = 9;
 const int LED_PIN = 10;
 const int BUTTON_PIN = 11;
 
+const int GAME_KEY_PIN = 22;  // Key switch pin (HIGH = game on, LOW = game off)
+
 const int LED_BAR_CLK = 13;
 const int LED_BAR_DATA = 12;
 
@@ -556,6 +558,15 @@ bool debouncedButtonState = HIGH;
 unsigned long timerLastDebounceTime = 0;
 const unsigned long timerDebounceDelay = 30;
 
+// =====================================================
+// GAME KEY SWITCH MODULE
+// =====================================================
+
+bool lastKeyReading = LOW;
+bool keyState = false;  // false = off, true = on
+unsigned long keyLastDebounceTime = 0;
+const unsigned long keyDebounceDelay = 50;
+
 int currentDigits[4] = {0, 2, 0, 0};
 
 void updateTimerDisplay() {
@@ -584,6 +595,7 @@ void setupTimerModule() {
 
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
+  pinMode(GAME_KEY_PIN, INPUT_PULLDOWN);  // Key switch with internal pull-down
   digitalWrite(LED_PIN, LOW);
 
   updateTimerDisplay();
@@ -635,6 +647,40 @@ bool buttonJustPressed() {
 
   lastButtonReading = reading;
   return false;
+}
+
+void updateKeyState() {
+  bool reading = digitalRead(GAME_KEY_PIN);
+
+  if (reading != lastKeyReading) {
+    keyLastDebounceTime = millis();
+  }
+
+  if ((millis() - keyLastDebounceTime) > keyDebounceDelay) {
+    bool newKeyState = reading == HIGH;
+    
+    if (newKeyState != keyState) {
+      keyState = newKeyState;
+      
+      if (keyState) {
+        // Key turned ON - restart the game
+        Serial.println("GAME KEY ON - Restarting game");
+        remainingSeconds = TIMER_TOTAL_SECONDS;
+        timerRunning = true;
+        timerFinished = false;
+        buzzerLastBeepTime = 0;
+        updateTimerDisplay();
+      } else {
+        // Key turned OFF - pause/reset the game
+        Serial.println("GAME KEY OFF - Pausing game");
+        timerRunning = false;
+        noTone(BUZZER_PIN);
+        updateTimerDisplay();
+      }
+    }
+  }
+
+  lastKeyReading = reading;
 }
 
 bool digitIsVisible(char targetDigit) {
@@ -706,13 +752,18 @@ void setup() {
 }
 
 void loop() {
-  updateTimerModule();
-  updateBuzzerModule();
-  updateCoreModule();
+  updateKeyState();  // Always check key state first
+  
+  if (keyState) {
+    // Only run game when key is ON
+    updateTimerModule();
+    updateBuzzerModule();
+    updateCoreModule();
 
-  if (activeEncoderModule == FREQUENCY_MODULE) {
-    updateFrequencyModule();
-  } else if (activeEncoderModule == MAZE_MODULE) {
-    updateMazeModule();
+    if (activeEncoderModule == FREQUENCY_MODULE) {
+      updateFrequencyModule();
+    } else if (activeEncoderModule == MAZE_MODULE) {
+      updateMazeModule();
+    }
   }
 }
