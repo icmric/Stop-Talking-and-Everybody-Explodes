@@ -1,8 +1,8 @@
 /*
   BOMB DEFUSAL - FREQUENCY SCRAMBLER (Simplified)
-  LED bar - D2
-	Encoder (left) - D5
-	Encoder (right) - D7
+  LED bar - D12
+	Encoder (left) - D2
+	Encoder (right) - D4
 
 	Packages used
 	Encoder - Paul Stoffregen (v1.4.4)
@@ -21,9 +21,9 @@
 #include <LiquidCrystal_I2C.h>
 //
 // --- HARDWARE ---
-Grove_LED_Bar ledBar(3, 2, 0); // Clock, Data, Green-to-Red
-Encoder encLeft(5, 6);
-Encoder encRight(7, 8);
+Grove_LED_Bar ledBar(13, 12, 0); // Clock, Data, Green-to-Red
+Encoder encLeft(2, 3);
+Encoder encRight(4, 5);
 // --- CORE OVERHEATING: Hardware ---
 #define DHT_PIN  4
 #define DHT_TYPE DHT11
