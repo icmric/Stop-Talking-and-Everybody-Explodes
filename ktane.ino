@@ -50,7 +50,7 @@ const int DISP_DIO = 9;
 const int LED_PIN = 10;
 const int BUTTON_PIN = 11;
 
-const int GAME_KEY_PIN = 22;  // Key switch pin (HIGH = game on, LOW = game off)
+const int GAME_KEY_PIN = 22;  // Key switch pin (LOW = game on, HIGH = game off, internal pull-up)
 
 const int LED_BAR_CLK = 13;
 const int LED_BAR_DATA = 12;
@@ -567,6 +567,12 @@ bool keyState = false;  // false = off, true = on
 unsigned long keyLastDebounceTime = 0;
 const unsigned long keyDebounceDelay = 50;
 
+void initializeKeyState() {
+  // Initialize debounce timer on first setup
+  keyLastDebounceTime = millis();
+  lastKeyReading = HIGH;  // Starts high (pulled up, switch open)
+}
+
 int currentDigits[4] = {0, 2, 0, 0};
 
 void updateTimerDisplay() {
@@ -595,7 +601,7 @@ void setupTimerModule() {
 
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
-  pinMode(GAME_KEY_PIN, INPUT_PULLDOWN);  // Key switch with internal pull-down
+  pinMode(GAME_KEY_PIN, INPUT_PULLUP);  // Key switch with internal pull-up - connect switch to GND
   digitalWrite(LED_PIN, LOW);
 
   updateTimerDisplay();
@@ -657,7 +663,7 @@ void updateKeyState() {
   }
 
   if ((millis() - keyLastDebounceTime) > keyDebounceDelay) {
-    bool newKeyState = reading == HIGH;
+    bool newKeyState = reading == LOW;  // LOW = switch is ON (connected to GND)
     
     if (newKeyState != keyState) {
       keyState = newKeyState;
@@ -743,6 +749,7 @@ void setup() {
   setupFrequencyModule();
   setupCoreModule();
   setupTimerModule();
+  initializeKeyState();  // Initialize key debounce timer
 
   if (activeEncoderModule == MAZE_MODULE) {
     setupMazeModule();
