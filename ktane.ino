@@ -566,6 +566,7 @@ bool lastKeyReading = HIGH;  // Starts HIGH (floating when switch open)
 bool keyState = false;  // false = off, true = on
 unsigned long keyLastDebounceTime = 0;
 const unsigned long keyDebounceDelay = 50;
+unsigned long lastKeyDebugPrint = 0;  // For debug printing
 
 void initializeKeyState() {
   // Initialize debounce timer on first setup
@@ -657,6 +658,14 @@ bool buttonJustPressed() {
 
 void updateKeyState() {
   bool reading = digitalRead(GAME_KEY_PIN);
+  unsigned long now = millis();
+  
+  // Print raw pin reading every second for debugging
+  if (now - lastKeyDebugPrint >= 1000) {
+    lastKeyDebugPrint = now;
+    Serial.print("Pin 22 reads: ");
+    Serial.println(reading ? "HIGH" : "LOW");
+  }
 
   if (reading != lastKeyReading) {
     keyLastDebounceTime = millis();
