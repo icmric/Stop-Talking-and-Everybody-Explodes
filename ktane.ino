@@ -660,6 +660,8 @@ void updateKeyState() {
 
   if (reading != lastKeyReading) {
     keyLastDebounceTime = millis();
+    Serial.print("Key pin changed to: ");
+    Serial.println(reading ? "HIGH" : "LOW");
   }
 
   if ((millis() - keyLastDebounceTime) > keyDebounceDelay) {
@@ -667,6 +669,8 @@ void updateKeyState() {
     
     if (newKeyState != keyState) {
       keyState = newKeyState;
+      Serial.print("Key state: ");
+      Serial.println(keyState ? "ON" : "OFF");
       
       if (keyState) {
         // Key turned ON - restart the game
