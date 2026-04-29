@@ -7,10 +7,17 @@
   - 8x8 RGB LED matrix maze using the same two encoders
   - TM1637 countdown timer with Grove LED Button
   - Core overheating humidity/LCD module
+  - Signal alignment with HMC5883L compass and Mozzi buzzer
 
   Important pin note:
   The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.
   This combined version moves the DHT sensor to D7.
+
+   *** DISP_DIO moved from D9 to A0 ***
+  Mozzi (used by Signal Alignment) is hardwired to output audio on D9 on Arduino Uno.
+  This is baked into the Mozzi library and cannot be changed without modifying the library source.
+  TM1637 DIO has been moved to A0 to free up D9 for Mozzi audio output.
+  Rewire your TM1637 DIO wire from D9 to A0 on your Arduino.
 
   Libraries required:
   - Grove LED Bar
@@ -19,6 +26,7 @@
   - LiquidCrystal_I2C
   - TM1637
   - Grove two RGB LED Matrix
+  - Mozzi by Tim Barrass
 */
 
 #include <Wire.h>
@@ -29,6 +37,9 @@
 #include <LiquidCrystal_I2C.h>
 #include "TM1637.h"
 #include "grove_two_rgb_led_matrix.h"
+#include <MozziGuts.h>
+#include <Oscil.h>
+#include <tables/sin512_int8.h>
 
 // =====================================================
 // SHARED PIN MAP
@@ -45,7 +56,7 @@ const int DHT_PIN = 7;     // moved from D4 to avoid right encoder conflict
 const int DHT_TYPE = DHT11;
 
 const int DISP_CLK = 8;
-const int DISP_DIO = 9;
+const int DISP_DIO = A0;  // moved from D9 to A0 — D9 is reserved for Mozzi audio output
 
 const int LED_PIN = 10;
 const int BUTTON_PIN = 11;
@@ -457,6 +468,7 @@ void checkMazeSolved() {
     mazeSolved = true;
     drawScene();
     Serial.println("Maze solved!");
+    setupSignalAlignmentModule();
   }
 }
 
@@ -683,7 +695,173 @@ void updateTimerModule() {
     // Correct button press while a 1 is visible.
   }
 }
+// =====================================================
+// SIGNAL ALIGNMENT MODULE
+// =====================================================
 
+#define CONTROL_RATE  64
+#define HMC5883L_ADDR 0x1E
+
+// change serial number to match bomb
+const char serialNumber[] = "RTMS2831";
+
+const int PITCH_HIGH = 2000;
+const int PITCH_LOW  = 500;
+const unsigned long HOLD_TIME = 8000;
+
+Oscil<SIN512_NUM_CELLS, AUDIO_RATE> osc(SIN512_DATA);
+
+// Values from compass_calibration.ino
+int calOffsetX = -28;
+int calOffsetY = 232;
+int calScaleX  = 91;
+int calScaleY  = 110;
+
+// signalCurrentFreq starts at 0 so the Mozzi oscillator is silent
+// until the signal alignment module activates
+int  signalCurrentFreq     = 0;
+int  signalStage           = 1;
+bool signalAlignmentSolved = false;
+unsigned long signalHoldStart       = 0;
+unsigned long signalLastCompassRead = 0;
+bool signalHolding = false;
+int  signalHeading = 0;
+
+// Mozzi required callbacks — must be global
+void updateControl() {
+  osc.setFreq(signalCurrentFreq);
+}
+
+int updateAudio() {
+  int sample = osc.next();
+  return (sample + (sample >> 1)) >> 1;
+}
+
+bool inNorthWindow(int h) { return (h >= 340 || h <= 20); }
+bool inSouthWindow(int h) { return (h >= 150 && h <= 210); }
+
+int headingToPitch(int h) {
+  if (h <= 180) return map(h, 0, 180, PITCH_HIGH, PITCH_LOW);
+  else          return map(h, 180, 360, PITCH_LOW, PITCH_HIGH);
+}
+
+bool getTargetNorth(int stg) {
+  if (stg == 1) {
+    int sum = 0;
+    for (int i = 4; i < 8; i++) sum += (serialNumber[i] - '0');
+    return (sum % 2 == 0);
+  } else {
+    int letterVal = serialNumber[0] - 'A' + 1;
+    int lastDigit = serialNumber[7] - '0';
+    return (letterVal == lastDigit);
+  }
+}
+
+void signalPlayNote(int freq, int durationMs) {
+  signalCurrentFreq = freq;
+  unsigned long t = millis();
+  while (millis() - t < durationMs) audioHook();
+}
+
+void signalSilence(int durationMs) {
+  signalCurrentFreq = 0;
+  unsigned long t = millis();
+  while (millis() - t < durationMs) audioHook();
+}
+
+void playSuccessSound() {
+  signalPlayNote(600,  100); signalSilence(30);
+  signalPlayNote(800,  100); signalSilence(30);
+  signalPlayNote(1000, 100); signalSilence(30);
+  signalPlayNote(1200, 100); signalSilence(30);
+
+  signalPlayNote(1600, 300); signalSilence(50);
+
+  signalPlayNote(1800, 150); signalSilence(60);
+  signalPlayNote(2000, 400);
+  signalSilence(100);
+  signalCurrentFreq = headingToPitch(signalHeading);
+}
+
+void setupSignalAlignmentModule() {
+  Wire.beginTransmission(HMC5883L_ADDR);
+  Wire.write(0x00);
+  Wire.write(0x70);
+  Wire.endTransmission();
+
+  Wire.beginTransmission(HMC5883L_ADDR);
+  Wire.write(0x01);
+  Wire.write(0xA0);
+  Wire.endTransmission();
+
+  Wire.beginTransmission(HMC5883L_ADDR);
+  Wire.write(0x02);
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  Serial.println(F("Signal Alignment active."));
+  Serial.print(F("Stage 1 target: "));
+  Serial.println(getTargetNorth(1) ? F("NORTH") : F("SOUTH"));
+}
+
+void updateSignalAlignmentModule() {
+  if (signalAlignmentSolved) {
+    return;
+  }
+
+  unsigned long now = millis();
+
+  if (now - signalLastCompassRead >= 100) {
+    signalLastCompassRead = now;
+
+    Wire.beginTransmission(HMC5883L_ADDR);
+    Wire.write(0x03);
+    Wire.endTransmission(false);
+    Wire.requestFrom(HMC5883L_ADDR, 6);
+    int x = (Wire.read() << 8) | Wire.read();
+    Wire.read(); Wire.read(); // discard Z
+    int y = (Wire.read() << 8) | Wire.read();
+
+    long cx = ((long)(x - calOffsetX) * calScaleX) / 100;
+    long cy = ((long)(y - calOffsetY) * calScaleY) / 100;
+
+    float headingRad = atan2(cy, cx);
+    if (headingRad < 0) headingRad += 2 * PI;
+    signalHeading     = (int)(headingRad * 180.0 / PI);
+    signalCurrentFreq = headingToPitch(signalHeading);
+  }
+
+  bool targetNorth = getTargetNorth(signalStage);
+  bool inCorrect   = targetNorth ? inNorthWindow(signalHeading) : inSouthWindow(signalHeading);
+
+  if (inCorrect) {
+    if (!signalHolding) {
+      signalHolding   = true;
+      signalHoldStart = now;
+      Serial.println(F("Holding correct direction..."));
+    }
+
+    if (now - signalHoldStart >= HOLD_TIME) {
+      Serial.print(F("Stage ")); Serial.print(signalStage); Serial.println(F(" complete!"));
+      playSuccessSound();
+
+      if (signalStage == 2) {
+        signalAlignmentSolved = true;
+        signalCurrentFreq = 0;
+        Serial.println(F("SIGNAL LOCKED - MODULE COMPLETE"));
+      } else {
+        signalStage++;
+        signalHolding   = false;
+        signalHoldStart = 0;
+        Serial.print(F("Stage 2 target: "));
+        Serial.println(getTargetNorth(2) ? F("NORTH") : F("SOUTH"));
+      }
+    }
+  } else {
+    signalHolding   = false;
+    signalHoldStart = 0;
+  }
+}
 // =====================================================
 // MAIN SETUP / LOOP
 // =====================================================
@@ -701,11 +879,13 @@ void setup() {
   if (activeEncoderModule == MAZE_MODULE) {
     setupMazeModule();
   }
+  startMozzi(CONTROL_RATE); // required by Mozzi — must be called in setup()
 
   Serial.println("Combined system ready");
 }
 
 void loop() {
+  audioHook(); // required by Mozzi — must be called every loop iteration
   updateTimerModule();
   updateBuzzerModule();
   updateCoreModule();
@@ -714,5 +894,8 @@ void loop() {
     updateFrequencyModule();
   } else if (activeEncoderModule == MAZE_MODULE) {
     updateMazeModule();
+  }
+  if (mazeSolved && !signalAlignmentSolved) {
+    updateSignalAlignmentModule();
   }
 }
