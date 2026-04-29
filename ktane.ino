@@ -50,7 +50,7 @@ const int DISP_DIO = 9;
 const int LED_PIN = 10;
 const int BUTTON_PIN = 11;
 
-const int GAME_KEY_PIN = 22;  // Key switch pin (LOW = game on, HIGH = game off, internal pull-up)
+const int GAME_KEY_PIN = 22;  // Key switch pin (HIGH = game on, LOW = game off, connect to 5V)
 
 const int LED_BAR_CLK = 13;
 const int LED_BAR_DATA = 12;
@@ -562,7 +562,7 @@ const unsigned long timerDebounceDelay = 30;
 // GAME KEY SWITCH MODULE
 // =====================================================
 
-bool lastKeyReading = LOW;
+bool lastKeyReading = HIGH;  // Starts HIGH (floating when switch open)
 bool keyState = false;  // false = off, true = on
 unsigned long keyLastDebounceTime = 0;
 const unsigned long keyDebounceDelay = 50;
@@ -570,7 +570,7 @@ const unsigned long keyDebounceDelay = 50;
 void initializeKeyState() {
   // Initialize debounce timer on first setup
   keyLastDebounceTime = millis();
-  lastKeyReading = HIGH;  // Starts high (pulled up, switch open)
+  lastKeyReading = LOW;  // Starts low (floating, switch open)
 }
 
 int currentDigits[4] = {0, 2, 0, 0};
@@ -601,7 +601,7 @@ void setupTimerModule() {
 
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
-  pinMode(GAME_KEY_PIN, INPUT_PULLUP);  // Key switch with internal pull-up - connect switch to GND
+  pinMode(GAME_KEY_PIN, INPUT);  // Key switch connected to 5V via switch, no pull-up needed
   digitalWrite(LED_PIN, LOW);
 
   updateTimerDisplay();
@@ -663,7 +663,7 @@ void updateKeyState() {
   }
 
   if ((millis() - keyLastDebounceTime) > keyDebounceDelay) {
-    bool newKeyState = reading == LOW;  // LOW = switch is ON (connected to GND)
+    bool newKeyState = reading == HIGH;  // HIGH = switch is ON (connected to 5V)
     
     if (newKeyState != keyState) {
       keyState = newKeyState;
