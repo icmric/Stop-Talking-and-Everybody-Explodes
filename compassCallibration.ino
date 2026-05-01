@@ -60,7 +60,7 @@ void setup() {
   int scaleX   = (avgRange * 100) / rangeX;
   int scaleY   = (avgRange * 100) / rangeY;
 
-  Serial.println("\n--- COPY THESE INTO signal_alignment.ino ---");
+  Serial.println("\n--- COPY THESE INTO signalAlignment.h ---");
   Serial.print("int calOffsetX = "); Serial.print(offsetX); Serial.println(";");
   Serial.print("int calOffsetY = "); Serial.print(offsetY); Serial.println(";");
   Serial.print("int calScaleX  = "); Serial.print(scaleX);  Serial.println(";");
