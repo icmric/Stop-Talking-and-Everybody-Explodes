@@ -19,6 +19,7 @@
 
 // Forward declarations
 extern void playSuccessTone();
+extern String bombbombSerialNumber;
 
 #include <Wire.h>
 #include <MozziGuts.h>
@@ -27,9 +28,6 @@ extern void playSuccessTone();
 
 #define CONTROL_RATE  64
 #define HMC5883L_ADDR 0x1E
-
-// change serial number to match bomb
-const char serialNumber[] = "RTMS2831";
 
 const int PITCH_HIGH = 2000;
 const int PITCH_LOW  = 500;
@@ -74,11 +72,11 @@ int headingToPitch(int h) {
 bool getTargetNorth(int stg) {
   if (stg == 1) {
     int sum = 0;
-    for (int i = 4; i < 8; i++) sum += (serialNumber[i] - '0');
+    for (int i = 4; i < 8; i++) sum += (bombSerialNumber[i] - '0');
     return (sum % 2 == 0);
   } else {
-    int letterVal = serialNumber[0] - 'A' + 1;
-    int lastDigit = serialNumber[7] - '0';
+    int letterVal = bombSerialNumber[0] - 'A' + 1;
+    int lastDigit = bombSerialNumber[7] - '0';
     return (letterVal == lastDigit);
   }
 }
