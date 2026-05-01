@@ -19,7 +19,7 @@
   - Ultrasonic (d30)
 
   Important pin note:
-  The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.
+  The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.udio
   This combined version moves the DHT sensor to D7.
 
   Libraries required:
@@ -541,7 +541,9 @@ void setup() {
 }
 
 void loop() {
-  audioHook();
+  //audioHook();
+  //COMMENTED OUT BECUASE WE NEED THIS BUZZER TO BE ON D9 FOR IT TO WORK
+  
   // Check key switch state and handle state transitions
   handleKeySwitch();
   updateGameState();
