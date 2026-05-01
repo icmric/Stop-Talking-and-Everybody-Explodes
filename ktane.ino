@@ -8,19 +8,25 @@
   - TM1637 countdown timer with Grove LED Button
   - Core overheating humidity/LCD module
   - Distance control with ultrasonic sensor on D30
+  - Signal alignment with HMC5883L compass (see signal_alignment.h)
 
   Pins
   - Enc left (d2-3)
   - Enc Right (d4-5)
   - Buzzer (d6-7)
-  - 4 digit (d8-9)
+  - 4 digit (d8-9) *** DISP_DIO must move off D9 before enabling Mozzi audio ***
   - red LED button (d10-11)
   - LED bar (d12-13)
   - Ultrasonic (d30)
+  - Compass HMC5883L (SDA/SCL, shared I2C bus)
 
   Important pin note:
-  The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.
+  The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.udio
   This combined version moves the DHT sensor to D7.
+
+  Mozzi note:
+  Signal alignment uses Mozzi for audio, which requires D9 for output on Arduino Mega.
+  startMozzi() and audioHook() are currently commented out until DISP_DIO is moved off D9.
 
   Libraries required:
   - Grove LED Bar
@@ -30,6 +36,7 @@
   - TM1637
   - Grove two RGB LED Matrix
   - Ultrasonic
+  - Mozzi by Tim Barrass
 */
 
 #include <Wire.h>
@@ -42,6 +49,7 @@
 #include "TM1637.h"
 #include "grove_two_rgb_led_matrix.h"
 #include "SerialNumberGenerator.h"
+#include "signal_alignment.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -547,9 +555,14 @@ void setup() {
   }
 
   lcd.print("Starting!");
+  //startMozzi(CONTROL_RATE);
+  //COMMENTED OUT BECUASE WE NEED THIS BUZZER TO BE ON D9 FOR IT TO WORK
 }
 
 void loop() {
+  //audioHook();
+  //COMMENTED OUT BECUASE WE NEED THIS BUZZER TO BE ON D9 FOR IT TO WORK
+  
   // Check key switch state and handle state transitions
   handleKeySwitch();
   updateGameState();
@@ -576,6 +589,15 @@ void loop() {
         updateFrequencyModule();
       } else if (activeEncoderModule == MAZE_MODULE) {
         updateMazeModule();
+      }
+    // Signal alignment activates once all other modules are done
+      if (frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved) {
+        static bool signalSetupDone = false;
+        if (!signalSetupDone) {
+          setupSignalAlignmentModule();
+          signalSetupDone = true;
+        }
+        updateSignalAlignmentModule();
       }
     }
   }
