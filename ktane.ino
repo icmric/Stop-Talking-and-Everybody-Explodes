@@ -42,6 +42,7 @@
 #include "TM1637.h"
 #include "grove_two_rgb_led_matrix.h"
 #include "SerialNumberGenerator.h"
+#include "signal_alignment.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -266,7 +267,7 @@ bool readKeySwitchDebounced() {
 }
 
 bool allModulesSolved() {
-  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved;
+  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && signalAlignmentSolved;
 }
 
 void displayInitialScreen() {
@@ -535,9 +536,12 @@ void setup() {
   }
 
   lcd.print("Starting!");
+  //startMozzi(CONTROL_RATE);
+  //COMMENTED OUT BECUASE WE NEED THIS BUZZER TO BE ON D9 FOR IT TO WORK
 }
 
 void loop() {
+  audioHook();
   // Check key switch state and handle state transitions
   handleKeySwitch();
   updateGameState();
@@ -564,6 +568,15 @@ void loop() {
         updateFrequencyModule();
       } else if (activeEncoderModule == MAZE_MODULE) {
         updateMazeModule();
+      }
+    // Signal alignment activates once all other modules are done
+      if (frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved) {
+        static bool signalSetupDone = false;
+        if (!signalSetupDone) {
+          setupSignalAlignmentModule();
+          signalSetupDone = true;
+        }
+        updateSignalAlignmentModule();
       }
     }
   }
