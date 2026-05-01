@@ -81,9 +81,12 @@ const int ENC_LEFT_B = 3;
 const int ENC_RIGHT_A = 4;
 const int ENC_RIGHT_B = 5;
 
-// Temp & humid sensor
-const int DHT_PIN = 7;     // moved from D4 to avoid right encoder conflict
+// Temp & humid sensor (on analog pins A2-A3, digital 56-57)
+const int DHT_PIN = A2;     // A2 = digital pin 56
 const int DHT_TYPE = DHT11;
+
+// Ultrasonic sensor (on analog pins A0-A1, digital 54-55)
+const int ULTRASONIC_PIN = A0;  // A0 = digital pin 54
 
 // 4 digit display
 const int DISP_CLK = 8;

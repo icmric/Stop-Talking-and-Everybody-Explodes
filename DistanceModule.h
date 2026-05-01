@@ -13,12 +13,11 @@
 // Forward declarations
 extern Grove_LED_Bar ledBar;
 extern void playSuccessTone();
+extern const int ULTRASONIC_PIN;
 
 // =====================================================
 // DISTANCE CONTROL MODULE
 // =====================================================
-
-const int ULTRASONIC_PIN = 30;
 
 const int TARGET_MIN = 10;
 const int TARGET_MAX = 15;
@@ -84,7 +83,8 @@ void updateDistanceModule() {
     return;
   }
 
-  int distance = ultrasonic.read();
+  // Grove Ultrasonic returns distance in cm directly
+  int distance = ultrasonic.MeasureInCentimeters();
 
   // Handle invalid readings
   if (distance <= 0 || distance > MAX_DISTANCE) {

@@ -8,6 +8,7 @@
 #define BUTTON_COMBO_MODULE_H
 
 // Forward declarations
+extern const int BUZZER_PIN;
 extern void playSuccessTone();
 
 // =====================================================
