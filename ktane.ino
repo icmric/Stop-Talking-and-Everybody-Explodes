@@ -140,6 +140,7 @@ const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_TOTAL_SECONDS * 
 int remainingSeconds = TIMER_TOTAL_SECONDS;
 bool timerRunning = true;
 bool timerFinished = false;
+bool timerModuleSolved = false;  // Track if timer module has been solved
 unsigned long timerLastTick = 0;
 
 // =====================================================
@@ -266,7 +267,7 @@ bool readKeySwitchDebounced() {
 }
 
 bool allModulesSolved() {
-  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved;
+  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && timerModuleSolved;
 }
 
 void displayInitialScreen() {
@@ -476,21 +477,32 @@ bool digitIsVisible(char targetDigit) {
 }
 
 bool activate(const char* target) {
+  // Don't do anything if timer module is already solved
+  if (timerModuleSolved) {
+    digitalWrite(LED_PIN, LOW);
+    return false;
+  }
+
   if (target == nullptr || target[0] == '\0' || target[1] != '\0') {
     return false;
+  }
+
+  bool digitVisible = digitIsVisible(target[0]);
+  
+  // Update LED to show if target digit is visible
+  if (digitVisible) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
   }
 
   if (!buttonJustPressed()) {
     return false;
   }
 
-  bool correct = digitIsVisible(target[0]);
-
-  if (correct) {
-    timerRunning = false;
-    noTone(BUZZER_PIN);
-    digitalWrite(LED_PIN, HIGH);
-    Serial.println("Timer button solved!");
+  if (digitVisible) {
+    timerModuleSolved = true;  // Mark module as solved
+    digitalWrite(LED_PIN, LOW);  // Turn off LED
     return true;
   }
 
