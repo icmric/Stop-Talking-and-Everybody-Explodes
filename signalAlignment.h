@@ -19,7 +19,7 @@
 
 // Forward declarations
 extern void playSuccessTone();
-extern String bombbombSerialNumber;
+extern String bombSerialNumber;
 
 #include <Wire.h>
 #include <MozziGuts.h>
