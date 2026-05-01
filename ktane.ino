@@ -41,6 +41,7 @@
 #include "rgb_lcd.h"
 #include "TM1637.h"
 #include "grove_two_rgb_led_matrix.h"
+#include "SerialNumberGenerator.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -117,6 +118,9 @@ GroveTwoRGBLedMatrixClass matrix;
 
 ActiveEncoderModule activeEncoderModule = FREQUENCY_MODULE;
 GameState currentGameState = STATE_IDLE;
+
+// Serial number for the bomb
+String bombSerialNumber = "";
 
 // Key switch state tracking
 bool keyLastState = false;
@@ -272,6 +276,13 @@ void displayInitialScreen() {
   tm1637.display(displayDigits);
 }
 
+void displaySerialNumber() {
+  // Display serial number on LCD (line 0) with remaining time or status (line 1)
+  lcd.setCursor(0, 0);
+  lcd.print("SN:");
+  lcd.print(bombSerialNumber);
+}
+
 void displayBombDisarmed() {
   // Clear the timer display and show "Bomb Disarmed" on the LCD
   lcd.clear();
@@ -295,6 +306,7 @@ void displayGameOverFailed() {
 }
 
 bool lastDisplayedGameState = -1;
+bool serialNumberDisplayed = false;
 
 void updateDisplayState() {
   // Update display based on current game state
@@ -306,6 +318,15 @@ void updateDisplayState() {
       displayBombDisarmed();
     }
     lastDisplayedGameState = currentGameState;
+    serialNumberDisplayed = false;  // Reset flag when state changes
+  }
+  
+  // Show serial number during normal gameplay (not during core event)
+  if (!serialNumberDisplayed && (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)) {
+    if (!coreTriggered) {
+      displaySerialNumber();
+      serialNumberDisplayed = true;
+    }
   }
 }
 
@@ -494,6 +515,9 @@ void setup() {
   Wire.begin();
   delay(1000);
 
+  // Generate bomb serial number
+  bombSerialNumber = generateSerialNumber();
+
   // Initialize key switch
   pinMode(KEY_SWITCH_PIN, INPUT);
   keyCurrentState = digitalRead(KEY_SWITCH_PIN);
@@ -510,8 +534,6 @@ void setup() {
     setupMazeModule();
   }
 
-  Serial.println("Combined system ready");
-  Serial.println("Waiting for key switch to turn ON...");
   lcd.print("Starting!");
 }
 
@@ -528,13 +550,21 @@ void loop() {
     updateTimerModule();
     updateBuzzerModule();
     updateCoreModule();
-    updateDistanceModule();
-    updateButtonComboModule();
+    
+    // Pause all other modules while core event is active/flashing
+    if (!coreTriggered || coreSolved) {
+      // Disable distance module until after maze is complete to prevent ultrasonic interference
+      if (mazeSolved) {
+        updateDistanceModule();
+      }
+      
+      updateButtonComboModule();
 
-    if (activeEncoderModule == FREQUENCY_MODULE) {
-      updateFrequencyModule();
-    } else if (activeEncoderModule == MAZE_MODULE) {
-      updateMazeModule();
+      if (activeEncoderModule == FREQUENCY_MODULE) {
+        updateFrequencyModule();
+      } else if (activeEncoderModule == MAZE_MODULE) {
+        updateMazeModule();
+      }
     }
   }
 }

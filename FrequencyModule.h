@@ -15,108 +15,117 @@
 enum ActiveEncoderModule;
 extern ActiveEncoderModule activeEncoderModule;
 extern void setupMazeModule();
+extern void triggerCoreEvent();
 
-// Forward declarations - these objects are declared in main file
+// Forward declarations
 extern Grove_LED_Bar ledBar;
 extern Encoder encLeft;
 extern Encoder encRight;
 
 // =====================================================
-// FREQUENCY SCRAMBLER MODULE
+// FREQUENCY SCRAMBLER MODULE - MINIMAL REBUILD
 // =====================================================
 
-struct ComboStep {
-  char encoder;
-  int direction; // 1 = CW, -1 = CCW
-  int clicks;
-};
+// Combination sequence: (encoder: 'L'/'R', direction: 1/-1, clicks needed)
+const char COMBO_ENCODER[] = {'L', 'R', 'L'};
+const int COMBO_DIRECTION[] = {1, -1, -1};
+const int COMBO_CLICKS[] = {3, 2, 2};
+const int COMBO_STEPS = 3;
 
-ComboStep combination[] = {
-  {'L', 1, 3},
-  {'R', -1, 2},
-  {'L', -1, 2}
-};
-
-int frequencyCurrentStep = 0;
-const int frequencyTotalSteps = 3;
-int frequencyClicksInCurrentStep = 0;
-long frequencyLastLeftPos = 0;
-long frequencyLastRightPos = 0;
-
-unsigned long frequencyLastMoveTime = 0;
-const int frequencyConfirmDelay = 500;
+int freqStep = 0;
+int freqClicks = 0;
+long freqLastLeftRead = 0;
+long freqLastRightRead = 0;
+unsigned long freqLastClickTime = 0;
 bool frequencyModuleSolved = false;
-
-void updateFrequencyDisplay() {
-  int displayLevel = map(frequencyCurrentStep, 0, frequencyTotalSteps, 10, 1);
-  ledBar.setLevel(displayLevel);
-}
-
-void flashFrequencySuccess() {
-  Serial.println("Frequency module solved!");
-  for (int i = 0; i < 4; i++) {
-    ledBar.setLevel(10); delay(150);
-    ledBar.setLevel(0);  delay(150);
-  }
-  ledBar.setLevel(10);
-}
+const unsigned long FREQ_CONFIRM_TIME = 500;
 
 void setupFrequencyModule() {
   ledBar.begin();
-  frequencyLastLeftPos = encLeft.read() / 4;
-  frequencyLastRightPos = encRight.read() / 4;
-  updateFrequencyDisplay();
+  freqStep = 0;
+  freqClicks = 0;
+  frequencyModuleSolved = false;
+  
+  freqLastLeftRead = encLeft.read() / 4;
+  freqLastRightRead = encRight.read() / 4;
+  
+  ledBar.setLevel(10);
 }
 
 void updateFrequencyModule() {
   if (frequencyModuleSolved) {
     return;
   }
-
-  long currLeft = encLeft.read() / 4;
-  long currRight = encRight.read() / 4;
-  ComboStep target = combination[frequencyCurrentStep];
-
-  bool moved = false;
-  int moveDir = 0;
-
-  if (target.encoder == 'L' && currLeft != frequencyLastLeftPos) {
-    moveDir = (currLeft > frequencyLastLeftPos) ? 1 : -1;
-    moved = true;
-    frequencyLastLeftPos = currLeft;
-  } else if (target.encoder == 'R' && currRight != frequencyLastRightPos) {
-    moveDir = (currRight > frequencyLastRightPos) ? 1 : -1;
-    moved = true;
-    frequencyLastRightPos = currRight;
-  }
-
-  if (moved) {
-    frequencyLastMoveTime = millis();
-
-    if (moveDir == target.direction) {
-      frequencyClicksInCurrentStep++;
-      Serial.print("Frequency click: ");
-      Serial.println(frequencyClicksInCurrentStep);
-    } else {
-      frequencyClicksInCurrentStep = 0;
-      Serial.println("Wrong direction, frequency step reset");
+  
+  // Always read both encoders
+  long leftNow = encLeft.read() / 4;
+  long rightNow = encRight.read() / 4;
+  
+  char needEncoder = COMBO_ENCODER[freqStep];
+  int needDirection = COMBO_DIRECTION[freqStep];
+  int needClicks = COMBO_CLICKS[freqStep];
+  
+  // Process only the encoder we need
+  if (needEncoder == 'L') {
+    long change = leftNow - freqLastLeftRead;
+    
+    if (change != 0) {
+      int dir = (change > 0) ? 1 : -1;
+      freqLastLeftRead = leftNow;
+      
+      if (dir == needDirection) {
+        freqClicks += abs(change);
+        freqLastClickTime = millis();
+      } else {
+        freqClicks = 0;
+      }
+    }
+  } 
+  else if (needEncoder == 'R') {
+    long change = rightNow - freqLastRightRead;
+    
+    if (change != 0) {
+      int dir = (change > 0) ? 1 : -1;
+      freqLastRightRead = rightNow;
+      
+      if (dir == needDirection) {
+        freqClicks += abs(change);
+        freqLastClickTime = millis();
+      } else {
+        freqClicks = 0;
+      }
     }
   }
-
-  if (frequencyClicksInCurrentStep >= target.clicks && millis() - frequencyLastMoveTime > frequencyConfirmDelay) {
-    frequencyCurrentStep++;
-    frequencyClicksInCurrentStep = 0;
-
-    Serial.print("Frequency step confirmed: ");
-    Serial.println(frequencyCurrentStep);
-    updateFrequencyDisplay();
-
-    if (frequencyCurrentStep >= frequencyTotalSteps) {
+  
+  // Check if step is complete
+  if (freqClicks >= needClicks && (millis() - freqLastClickTime) >= FREQ_CONFIRM_TIME) {
+    freqStep++;
+    freqClicks = 0;
+    
+    // Capture fresh baseline for next step
+    freqLastLeftRead = encLeft.read() / 4;
+    freqLastRightRead = encRight.read() / 4;
+    
+    // Update display
+    int level = map(freqStep, 0, COMBO_STEPS, 10, 1);
+    ledBar.setLevel(level);
+    
+    if (freqStep >= COMBO_STEPS) {
       frequencyModuleSolved = true;
-      flashFrequencySuccess();
-      // Note: Transition to maze module is handled in main file
-      activeEncoderModule = (ActiveEncoderModule)1;  // MAZE_MODULE
+      
+      // Flash LED bar
+      for (int i = 0; i < 4; i++) {
+        ledBar.setLevel(10);
+        delay(150);
+        ledBar.setLevel(0);
+        delay(150);
+      }
+      ledBar.setLevel(10);
+      
+      // Setup maze and trigger core
+      activeEncoderModule = (ActiveEncoderModule)1;
       setupMazeModule();
+      triggerCoreEvent();
     }
   }
 }

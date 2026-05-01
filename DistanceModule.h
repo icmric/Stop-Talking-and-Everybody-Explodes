@@ -3,6 +3,8 @@
   
   Uses an ultrasonic sensor to measure distance from an object.
   Player must hold the object at a specific distance range (10-15cm) for 3 seconds to solve.
+  Note: LED bar is shared with the frequency module, so distance module pauses LED updates
+  while frequency module is active.
 */
 
 #ifndef DISTANCE_MODULE_H
@@ -14,6 +16,7 @@
 extern Grove_LED_Bar ledBar;
 extern void playSuccessTone();
 extern const int ULTRASONIC_PIN;
+extern bool frequencyModuleSolved;  // Check if frequency module is done with LED bar
 
 // =====================================================
 // DISTANCE CONTROL MODULE
@@ -27,6 +30,8 @@ const unsigned long HOLD_TIME = 3000;
 bool distanceSolved = false;
 bool distanceInRange = false;
 unsigned long distanceHoldStart = 0;
+unsigned long distanceLastMeasure = 0;
+const unsigned long DISTANCE_MEASURE_INTERVAL = 50;  // Only measure every 50ms instead of every loop
 
 Ultrasonic ultrasonic(ULTRASONIC_PIN);
 
@@ -83,6 +88,13 @@ void updateDistanceModule() {
     return;
   }
 
+  // Only measure distance every 50ms to avoid blocking encoder interrupts
+  unsigned long now = millis();
+  if (now - distanceLastMeasure < DISTANCE_MEASURE_INTERVAL) {
+    return;
+  }
+  distanceLastMeasure = now;
+
   // Grove Ultrasonic returns distance in cm directly
   int distance = ultrasonic.MeasureInCentimeters();
 
@@ -91,11 +103,16 @@ void updateDistanceModule() {
     distance = MAX_DISTANCE;
   }
 
-  Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  // Disable distance logging to prevent interference with frequency module
+  // Serial.print("Distance: ");
+  // Serial.print(distance);
+  // Serial.println(" cm");
 
-  updateDistanceDisplay(distance);
+  // Only update LED bar display if frequency module isn't using it
+  if (frequencyModuleSolved) {
+    updateDistanceDisplay(distance);
+  }
+  
   checkDistanceHold(distance);
 }
 
