@@ -249,20 +249,34 @@ void updateBuzzerModule() {
   }
 
   unsigned long now = millis();
-  float t = getTimerProgress();
+  
+  // Panic mode: rapid beeping from 15 seconds remaining
+  if (remainingSeconds <= 15) {
+    // Rapid beeping every 100ms with increasing frequency
+    unsigned long panicInterval = 100;  // 10 beeps per second
+    int panicFreq = 1000 + (15 - remainingSeconds) * 50;  // Frequency increases as time runs out
+    
+    if (now - buzzerLastBeepTime >= panicInterval) {
+      tone(BUZZER_PIN, panicFreq, 50);  // 50ms beep, 50ms silence
+      buzzerLastBeepTime = now;
+    }
+  } else {
+    // Normal mode: exponential beeping
+    float t = getTimerProgress();
 
-  float intervalProgress = pow(t, buzzerIntervalCurve);
-  float pitchProgress = pow(t, buzzerPitchCurve);
+    float intervalProgress = pow(t, buzzerIntervalCurve);
+    float pitchProgress = pow(t, buzzerPitchCurve);
 
-  unsigned long currentInterval =
-    buzzerStartInterval - (unsigned long)((buzzerStartInterval - buzzerEndInterval) * intervalProgress);
+    unsigned long currentInterval =
+      buzzerStartInterval - (unsigned long)((buzzerStartInterval - buzzerEndInterval) * intervalProgress);
 
-  int currentFreq =
-    buzzerStartFreq + (int)((buzzerEndFreq - buzzerStartFreq) * pitchProgress);
+    int currentFreq =
+      buzzerStartFreq + (int)((buzzerEndFreq - buzzerStartFreq) * pitchProgress);
 
-  if (now - buzzerLastBeepTime >= currentInterval) {
-    tone(BUZZER_PIN, currentFreq, buzzerBeepDuration);
-    buzzerLastBeepTime = now;
+    if (now - buzzerLastBeepTime >= currentInterval) {
+      tone(BUZZER_PIN, currentFreq, buzzerBeepDuration);
+      buzzerLastBeepTime = now;
+    }
   }
 }
 
@@ -397,7 +411,14 @@ void displayGameOverFailed() {
   // Display game over message on LCD
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("GAME OVER!");
+  
+  // Check if we failed due to timer or key off
+  if (timerFinished && remainingSeconds == 0) {
+    lcd.print("BOMB EXPLODED");
+  } else {
+    lcd.print("GAME FAILED");
+  }
+  
   lcd.setCursor(0, 1);
   lcd.print("KEY TURNED OFF");
 }
@@ -418,9 +439,10 @@ void updateDisplayState() {
     serialNumberDisplayed = false;  // Reset flag when state changes
   }
   
-  // Show serial number during normal gameplay (not during core event)
+  // Show serial number during normal gameplay (not while core event is active)
   if (!serialNumberDisplayed && (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)) {
-    if (!coreTriggered) {
+    // Display serial number if core hasn't triggered yet, or if core event is complete
+    if (!coreTriggered || coreSolved) {
       displaySerialNumber();
       serialNumberDisplayed = true;
     }
@@ -529,7 +551,14 @@ void updateCountdown() {
       timerRunning = false;
       timerFinished = true;
       stopBuzzer();
-      if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
+      
+      // If we were in STATE_WON, the bomb still explodes if key isn't turned off
+      if (currentGameState == STATE_WON) {
+        // Timer expired even though modules were complete - player failed to turn off key
+        currentGameState = STATE_FAILED;
+        updateTimerDisplay();
+      } else if (currentGameState == STATE_RUNNING) {
+        // Timer expired during normal gameplay
         updateTimerDisplay();
       }
     }
@@ -581,6 +610,14 @@ bool activate(const char* target) {
     return false;
   }
 
+  // Only allow button press after all other modules are completed
+  bool otherModulesComplete = frequencyModuleSolved && mazeSolved && coreSolved && 
+                               distanceSolved && buttonComboSolved;
+  if (!otherModulesComplete) {
+    digitalWrite(LED_PIN, LOW);
+    return false;
+  }
+
   if (target == nullptr || target[0] == '\0' || target[1] != '\0') {
     return false;
   }
@@ -625,6 +662,9 @@ void setup() {
   Wire.begin();
   delay(1000);
 
+  // Seed random number generator for truly random serial numbers
+  seedRandomNumberGenerator();
+
   // Generate bomb serial number
   bombSerialNumber = generateSerialNumber();
 
@@ -640,9 +680,8 @@ void setup() {
   setupButtonComboModule();
   setupTimerModule();
 
-  if (activeEncoderModule == MAZE_MODULE) {
-    setupMazeModule();
-  }
+  // Maze module setup is deferred until after core event to save power
+  // (will be called in updateMazeModule when conditions are met)
 
   lcd.print("Starting!");
   //startMozzi(CONTROL_RATE);

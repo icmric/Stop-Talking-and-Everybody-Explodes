@@ -38,4 +38,12 @@ String generateSerialNumber() {
   return serial;
 }
 
+// Seed the random number generator with analog noise
+// Call this in setup() before generating serial numbers
+void seedRandomNumberGenerator() {
+  // Read from an unconnected analog pin to get random noise
+  // Use A3 or another unconnected pin to gather entropy
+  randomSeed(analogRead(A4) + analogRead(A5) + micros());
+}
+
 #endif

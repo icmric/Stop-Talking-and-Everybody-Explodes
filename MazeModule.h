@@ -15,6 +15,8 @@
 
 // Forward declare penalty function
 extern void applyPenalty(const char* reason);
+extern bool coreSolved;    // Check if core event is complete before setting up maze
+extern bool coreTriggered; // Check if core event has been triggered
 
 // =====================================================
 // MATRIX MAZE MODULE
@@ -29,6 +31,7 @@ const int goalX = 5;
 const int goalY = 5;
 
 bool mazeSolved = false;
+bool mazeSetupDone = false;  // Track if maze LED matrix has been initialized
 uint8_t frame[64];
 long mazeLastLeftPos = 0;
 long mazeLastRightPos = 0;
@@ -204,6 +207,16 @@ void setupMazeModule() {
 void updateMazeModule() {
   if (mazeSolved) {
     return;
+  }
+
+  // Lazy initialization: only setup maze after core is solved to save power
+  if (!mazeSetupDone) {
+    if (activeEncoderModule != MAZE_MODULE || coreTriggered && !coreSolved) {
+      return;  // Wait until core event is complete before setting up maze
+    }
+    setupMazeModule();
+    mazeSetupDone = true;
+    return;  // Return after setup so we don't process moves on first frame
   }
 
   bool changed = false;

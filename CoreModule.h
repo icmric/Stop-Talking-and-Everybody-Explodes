@@ -37,9 +37,11 @@ bool coreSolved = false;
 bool coreTriggered = false;  // Tracks if core event has been activated
 bool coreBlowing = false;
 bool coreMessageShown = false;
+bool coreDisplayCleared = false;  // Track if we've cleared the "CORE STABLE" message
 unsigned long coreBlowStart = 0;
 unsigned long coreLastDHTRead = 0;
 unsigned long coreFlashStart = 0;
+unsigned long coreSolvedTime = 0;  // Track when core was solved
 bool coreFlashing = false;
 
 // Forward declarations - these objects are declared in main file
@@ -90,7 +92,7 @@ bool getCoreFlashState() {
 
 void updateCoreModule() {
   // Only run if core event has been triggered
-  if (!coreTriggered || coreSolved) {
+  if (!coreTriggered) {
     return;
   }
 
@@ -140,6 +142,21 @@ void updateCoreModule() {
     }
   }
 
+  if (coreSolved) {
+    // Display "CORE STABLE" for 2 seconds, then clear to return to normal display
+    if (!coreDisplayCleared) {
+      if (now - coreSolvedTime >= 2000) {
+        // Clear the display after 2 seconds
+        lcd.clear();
+        coreDisplayCleared = true;
+        // Signal to the main display logic to refresh the serial number
+        extern bool serialNumberDisplayed;
+        serialNumberDisplayed = false;
+      }
+    }
+    return;
+  }
+
   if (now - coreLastDHTRead >= 1200) {
     coreLastDHTRead = now;
     float humidity = dht.readHumidity();
@@ -169,6 +186,8 @@ void updateCoreModule() {
 
     if (now - coreBlowStart >= BLOW_DURATION) {
       coreSolved = true;
+      coreSolvedTime = now;  // Record when solved
+      coreDisplayCleared = false;  // Reset flag
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("CORE STABLE");

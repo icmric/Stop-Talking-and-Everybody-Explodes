@@ -109,26 +109,32 @@ void updateButtonComboModule() {
     buttonStartTime = millis();
   }
 
-  // Check button states with proper debouncing
+  // Check button states with proper edge detection (detect LOW transition only)
+  static int lastRedState = HIGH;
+  static int lastGreenState = HIGH;
   static unsigned long lastRedPress = 0;
   static unsigned long lastGreenPress = 0;
-  const unsigned long debounceDelay = 250;
+  const unsigned long debounceDelay = 50;  // Shorter debounce for edge detection
   
   unsigned long now = millis();
   
-  if (digitalRead(RED_BUTTON_PIN) == LOW) {
+  int redState = digitalRead(RED_BUTTON_PIN);
+  if (redState == LOW && lastRedState == HIGH) {  // Detect HIGH to LOW transition
     if (now - lastRedPress > debounceDelay) {
       handleButtonPress(0);  // RED
       lastRedPress = now;
     }
   }
-
-  if (digitalRead(GREEN_BUTTON_PIN) == LOW) {
+  lastRedState = redState;
+  
+  int greenState = digitalRead(GREEN_BUTTON_PIN);
+  if (greenState == LOW && lastGreenState == HIGH) {  // Detect HIGH to LOW transition
     if (now - lastGreenPress > debounceDelay) {
       handleButtonPress(1);  // GREEN
       lastGreenPress = now;
     }
   }
+  lastGreenState = greenState;
 }
 
 #endif
