@@ -3,6 +3,8 @@
   
   Uses an 8x8 RGB LED matrix and two encoders for player movement.
   Navigate from top-left to bottom-right to solve the module.
+  
+  Penalty: Hitting a wall = -3 seconds from timer
 */
 
 #ifndef MAZE_MODULE_H
@@ -10,6 +12,9 @@
 
 #include <Encoder.h>
 #include "grove_two_rgb_led_matrix.h"
+
+// Forward declare penalty function
+extern void applyPenalty(const char* reason);
 
 // =====================================================
 // MATRIX MAZE MODULE
@@ -146,6 +151,8 @@ bool moveRight() {
     playerX++;
     return true;
   }
+  // Hit a wall
+  applyPenalty("MazeWallHit");
   return false;
 }
 
@@ -154,6 +161,8 @@ bool moveLeft() {
     playerX--;
     return true;
   }
+  // Hit a wall
+  applyPenalty("MazeWallHit");
   return false;
 }
 
@@ -162,6 +171,8 @@ bool moveDown() {
     playerY++;
     return true;
   }
+  // Hit a wall
+  applyPenalty("MazeWallHit");
   return false;
 }
 
@@ -170,6 +181,8 @@ bool moveUp() {
     playerY--;
     return true;
   }
+  // Hit a wall
+  applyPenalty("MazeWallHit");
   return false;
 }
 

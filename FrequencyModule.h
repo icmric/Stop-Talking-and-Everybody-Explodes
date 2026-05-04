@@ -2,7 +2,15 @@
   Frequency Scrambler Module
   
   Uses two encoders (left and right) to input a sequence of turns.
-  Must complete the combination sequence to solve the module.
+  Sequence is determined by serial number's digit sum (mod 5 gives 5 presets).
+  Must complete the entire sequence to solve the module.
+  
+  Penalty: Wrong encoder or wrong direction = -3 seconds from timer
+  
+  Sequence derivation for manual operator:
+  1. Sum the 4 digits of serial number
+  2. Divide sum by 5, take remainder (0-4)
+  3. Look up sequence in manual reference table
 */
 
 #ifndef FREQUENCY_MODULE_H
@@ -10,12 +18,15 @@
 
 #include <Encoder.h>
 #include <Grove_LED_Bar.h>
+#include "FrequencyPresets.h"
+#include "SerialNumberParser.h"
 
 // Forward declare the enum and extern variables
 enum ActiveEncoderModule;
 extern ActiveEncoderModule activeEncoderModule;
 extern void setupMazeModule();
 extern void triggerCoreEvent();
+extern void applyPenalty(const char* reason);
 
 // Forward declarations
 extern Grove_LED_Bar ledBar;
@@ -23,14 +34,11 @@ extern Encoder encLeft;
 extern Encoder encRight;
 
 // =====================================================
-// FREQUENCY SCRAMBLER MODULE - MINIMAL REBUILD
+// FREQUENCY SCRAMBLER MODULE - SERIAL-DERIVED SEQUENCES
 // =====================================================
 
-// Combination sequence: (encoder: 'L'/'R', direction: 1/-1, clicks needed)
-const char COMBO_ENCODER[] = {'L', 'R', 'L'};
-const int COMBO_DIRECTION[] = {1, -1, -1};
-const int COMBO_CLICKS[] = {3, 2, 2};
-const int COMBO_STEPS = 3;
+// Current active sequence (selected based on serial number)
+const EncoderSequence* frequencySequence = nullptr;
 
 int freqStep = 0;
 int freqClicks = 0;
@@ -46,6 +54,10 @@ void setupFrequencyModule() {
   freqClicks = 0;
   frequencyModuleSolved = false;
   
+  // Select sequence based on serial number digit sum
+  int digitSum = getDigitSum();
+  frequencySequence = getFrequencySequence(digitSum);
+  
   freqLastLeftRead = encLeft.read() / 4;
   freqLastRightRead = encRight.read() / 4;
   
@@ -53,7 +65,7 @@ void setupFrequencyModule() {
 }
 
 void updateFrequencyModule() {
-  if (frequencyModuleSolved) {
+  if (frequencyModuleSolved || frequencySequence == nullptr) {
     return;
   }
   
@@ -61,9 +73,10 @@ void updateFrequencyModule() {
   long leftNow = encLeft.read() / 4;
   long rightNow = encRight.read() / 4;
   
-  char needEncoder = COMBO_ENCODER[freqStep];
-  int needDirection = COMBO_DIRECTION[freqStep];
-  int needClicks = COMBO_CLICKS[freqStep];
+  // Get current step requirements
+  char needEncoder = frequencySequence->encoder[freqStep];
+  int needDirection = frequencySequence->direction[freqStep];
+  int needClicks = frequencySequence->clicks[freqStep];
   
   // Process only the encoder we need
   if (needEncoder == 'L') {
@@ -74,10 +87,16 @@ void updateFrequencyModule() {
       freqLastLeftRead = leftNow;
       
       if (dir == needDirection) {
+        // Correct direction
         freqClicks += abs(change);
         freqLastClickTime = millis();
       } else {
+        // Wrong direction on left encoder - PENALTY
+        applyPenalty("FreqWrongDirection");
         freqClicks = 0;
+        // Reset baselines
+        freqLastLeftRead = encLeft.read() / 4;
+        freqLastRightRead = encRight.read() / 4;
       }
     }
   } 
@@ -89,12 +108,23 @@ void updateFrequencyModule() {
       freqLastRightRead = rightNow;
       
       if (dir == needDirection) {
+        // Correct direction
         freqClicks += abs(change);
         freqLastClickTime = millis();
       } else {
+        // Wrong direction on right encoder - PENALTY
+        applyPenalty("FreqWrongDirection");
         freqClicks = 0;
+        // Reset baselines
+        freqLastLeftRead = encLeft.read() / 4;
+        freqLastRightRead = encRight.read() / 4;
       }
     }
+  }
+  else if (needEncoder != ' ') {
+    // Invalid encoder character in sequence - shouldn't happen
+    frequencyModuleSolved = false;
+    return;
   }
   
   // Check if step is complete
@@ -106,14 +136,18 @@ void updateFrequencyModule() {
     freqLastLeftRead = encLeft.read() / 4;
     freqLastRightRead = encRight.read() / 4;
     
-    // Update display
-    int level = map(freqStep, 0, COMBO_STEPS, 10, 1);
+    // Update display - map current step to LED bar level
+    // If this is the last step, map(freqStep, 0, stepCount, 10, 1) would be 1
+    // If this is the first step, map(freqStep, 0, stepCount, 10, 1) would be closer to 10
+    int level = map(freqStep, 0, frequencySequence->stepCount, 10, 1);
+    if (level < 1) level = 1;
+    if (level > 10) level = 10;
     ledBar.setLevel(level);
     
-    if (freqStep >= COMBO_STEPS) {
+    if (freqStep >= frequencySequence->stepCount) {
       frequencyModuleSolved = true;
       
-      // Flash LED bar
+      // Flash LED bar to indicate completion
       for (int i = 0; i < 4; i++) {
         ledBar.setLevel(10);
         delay(150);

@@ -49,7 +49,8 @@
 #include "TM1637.h"
 #include "grove_two_rgb_led_matrix.h"
 #include "SerialNumberGenerator.h"
-#include "signal_alignment.h"
+#include "SerialNumberParser.h"
+#include "signalAlignment.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -152,6 +153,46 @@ bool timerModuleSolved = false;  // Track if timer module has been solved
 unsigned long timerLastTick = 0;
 
 // =====================================================
+// CORE MODULE RANDOMIZATION
+// =====================================================
+
+bool coreRandomizationInitialized = false;
+unsigned long coreRandomTriggerTime = 0;
+const unsigned long CORE_MIN_DELAY = 60000;   // Minimum 60 seconds before Core can trigger
+const unsigned long CORE_MAX_DELAY = 180000;  // Maximum 180 seconds (3 minutes)
+
+void initializeCoreRandomization() {
+  if (!coreRandomizationInitialized) {
+    // Pick random time between 60-180 seconds from game start
+    unsigned long randomDelay = CORE_MIN_DELAY + random(CORE_MAX_DELAY - CORE_MIN_DELAY);
+    coreRandomTriggerTime = millis() + randomDelay;
+    coreRandomizationInitialized = true;
+    
+    // Debug output
+    Serial.print("Core trigger scheduled for ");
+    Serial.print(randomDelay / 1000);
+    Serial.println(" seconds from now");
+  }
+}
+
+void checkAndTriggerCoreRandomly() {
+  if (!coreRandomizationInitialized) {
+    initializeCoreRandomization();
+  }
+  
+  // Check if it's time to trigger core event
+  if (!coreTriggered && millis() >= coreRandomTriggerTime) {
+    // Trigger core with some probability to add more randomness
+    if (random(100) < 80) {  // 80% chance to trigger when time is reached
+      triggerCoreEvent();
+    } else {
+      // Reschedule for 5 seconds later
+      coreRandomTriggerTime = millis() + 5000;
+    }
+  }
+}
+
+// =====================================================
 // BUZZER MODULE
 // =====================================================
 
@@ -241,6 +282,30 @@ void playSuccessTone() {
 }
 
 // =====================================================
+// PENALTY SYSTEM
+// =====================================================
+
+void applyPenalty(const char* reason) {
+  // Play strike tone: 1kHz for 200ms
+  tone(BUZZER_PIN, 1000, 200);
+  
+  // Reduce timer by 3 seconds (3000ms)
+  if (remainingSeconds > 3) {
+    remainingSeconds -= 3;
+  } else {
+    // Game ends if timer would go negative
+    remainingSeconds = 0;
+    timerRunning = false;
+    timerFinished = true;
+    stopBuzzer();
+    // Game over will be handled by normal game flow
+  }
+  
+  // Update display immediately
+  updateTimerDisplay();
+}
+
+// =====================================================
 // TIMER BUTTON MODULE
 // =====================================================
 
@@ -250,6 +315,29 @@ unsigned long timerLastDebounceTime = 0;
 const unsigned long timerDebounceDelay = 30;
 
 int currentDigits[4] = {0, 2, 0, 0};
+
+// =====================================================
+// RED BUTTON INTERRUPT HANDLER
+// =====================================================
+
+volatile bool redButtonPressed = false;
+
+// Interrupt service routine for red button
+// Arduino Mega: D11 = INT4
+void handleRedButtonInterrupt() {
+  redButtonPressed = true;
+}
+
+void setupRedButtonInterrupt() {
+  // Set up hardware interrupt on D11 (INT4) for rising edge
+  // Arduino Mega pins with interrupts: D2(INT4), D3(INT5), D21(INT0), D20(INT1), D19(INT2), D18(INT3)
+  // Wait, let me correct: D11 might not be interrupt. Let me check which pin is which.
+  // Actually, D11 doesn't have interrupt on Mega. Let me use a different approach.
+  // We'll use polling instead, but with better debouncing
+  
+  // For now, we'll handle this in the main loop with polling
+  // This is more reliable anyway since we need to check if digit is visible
+}
 
 // =====================================================
 // KEY SWITCH MODULE
@@ -275,7 +363,7 @@ bool readKeySwitchDebounced() {
 }
 
 bool allModulesSolved() {
-  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && timerModuleSolved;
+  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && timerModuleSolved && signalAlignmentSolved;
 }
 
 void displayInitialScreen() {
@@ -408,8 +496,10 @@ void setupTimerModule() {
   tm1637.point(POINT_ON);
 
   pinMode(LED_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Use pullup for better debouncing
   digitalWrite(LED_PIN, LOW);
+
+  setupRedButtonInterrupt();
 
   // Display initial "8888" screen
   displayInitialScreen();
@@ -572,6 +662,16 @@ void loop() {
 
   // Only update modules if game is running or won
   if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
+    // Check if Core should be triggered (probabilistic, after >= 1 module solved)
+    if (!coreTriggered) {
+      int modulesSolved = (frequencyModuleSolved ? 1 : 0) + (mazeSolved ? 1 : 0) + 
+                          (distanceSolved ? 1 : 0) + (buttonComboSolved ? 1 : 0) + 
+                          (timerModuleSolved ? 1 : 0);
+      if (modulesSolved >= 1) {
+        checkAndTriggerCoreRandomly();
+      }
+    }
+    
     updateTimerModule();
     updateBuzzerModule();
     updateCoreModule();

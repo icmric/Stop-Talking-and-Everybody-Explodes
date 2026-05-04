@@ -2,7 +2,12 @@
   Distance Control Module
   
   Uses an ultrasonic sensor to measure distance from an object.
-  Player must hold the object at a specific distance range (10-15cm) for 3 seconds to solve.
+  Required distance and hold time are derived from serial number:
+  - Distance: 2nd-to-last digit × 10 cm (0-90cm range, minimum 10cm enforced)
+  - Hold time: Last digit × 0.5 seconds (0-4.5 seconds)
+  
+  Player must hold the object at the required distance for the required hold time to solve.
+  
   Note: LED bar is shared with the frequency module, so distance module pauses LED updates
   while frequency module is active.
 */
@@ -11,6 +16,7 @@
 #define DISTANCE_MODULE_H
 
 #include <Ultrasonic.h>
+#include "SerialNumberParser.h"
 
 // Forward declarations
 extern Grove_LED_Bar ledBar;
@@ -22,10 +28,12 @@ extern bool frequencyModuleSolved;  // Check if frequency module is done with LE
 // DISTANCE CONTROL MODULE
 // =====================================================
 
-const int TARGET_MIN = 10;
-const int TARGET_MAX = 15;
+// These will be calculated from serial number
+int TARGET_MIN = 10;
+int TARGET_MAX = 15;
+unsigned long DISTANCE_HOLD_TIME = 3000;
+
 const int MAX_DISTANCE = 30;
-const unsigned long HOLD_TIME = 3000;
 
 bool distanceSolved = false;
 bool distanceInRange = false;
@@ -36,8 +44,45 @@ const unsigned long DISTANCE_MEASURE_INTERVAL = 50;  // Only measure every 50ms 
 Ultrasonic ultrasonic(ULTRASONIC_PIN);
 
 void setupDistanceModule() {
+  // Derive distance requirements from serial number
+  int secondToLastDigit = getSecondToLastDigit();
+  int lastDigit = getLastDigit();
+  
+  // Distance: 2nd-to-last digit × 10
+  int requiredDistance = secondToLastDigit * 10;
+  
+  // Enforce minimum of 10cm (ultrasonic has limited accuracy below this)
+  if (requiredDistance < 10) {
+    requiredDistance = 10;
+  }
+  
+  // Cap at 90cm (reasonable maximum)
+  if (requiredDistance > 90) {
+    requiredDistance = 90;
+  }
+  
+  // Set range: ±2.5cm tolerance around required distance
+  TARGET_MIN = requiredDistance - 2;
+  TARGET_MAX = requiredDistance + 2;
+  
+  // Hold time: last digit × 0.5 seconds, minimum 0.5 seconds
+  int holdTimeMs = lastDigit * 500;  // 0.5 seconds per digit
+  if (holdTimeMs < 500) {
+    holdTimeMs = 500;  // Minimum 0.5 seconds
+  }
+  
+  DISTANCE_HOLD_TIME = (unsigned long)holdTimeMs;
+  
   // Ultrasonic sensor handles its own setup
-  Serial.println("Distance module initialized");
+  Serial.print("Distance module: Target ");
+  Serial.print(requiredDistance);
+  Serial.print("cm (");
+  Serial.print(TARGET_MIN);
+  Serial.print("-");
+  Serial.print(TARGET_MAX);
+  Serial.print("cm), Hold ");
+  Serial.print(DISTANCE_HOLD_TIME / 1000.0);
+  Serial.println("s");
 }
 
 void updateDistanceDisplay(int distance) {
@@ -66,7 +111,7 @@ void checkDistanceHold(int distance) {
       Serial.println("Distance: Hold started");
     }
 
-    if (millis() - distanceHoldStart >= HOLD_TIME) {
+    if (millis() - distanceHoldStart >= DISTANCE_HOLD_TIME) {
       distanceSolved = true;
       Serial.println("Distance module solved!");
 
