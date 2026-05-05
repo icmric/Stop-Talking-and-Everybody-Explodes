@@ -392,7 +392,8 @@ void displayInitialScreen() {
 }
 
 void displaySerialNumber() {
-  // Display serial number on LCD (line 0) with remaining time or status (line 1)
+  // Display serial number on LCD - this is the only display during normal gameplay
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("SN:");
   lcd.print(bombSerialNumber);
@@ -434,7 +435,9 @@ void updateDisplayState() {
   // Update display based on current game state
   // Only update when state changes to avoid flickering
   if (currentGameState != lastDisplayedGameState) {
-    if (currentGameState == STATE_FAILED) {
+    if (currentGameState == STATE_IDLE) {
+      displayIdleScreen();
+    } else if (currentGameState == STATE_FAILED) {
       displayGameOverFailed();
     } else if (currentGameState == STATE_DISARMED) {
       displayBombDisarmed();
@@ -545,6 +548,15 @@ void setupTimerModule() {
   displayInitialScreen();
   
   timerLastTick = millis();
+}
+
+void displayIdleScreen() {
+  // Display "Bomb Armed" on LCD while waiting for key to be turned on
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("BOMB ARMED");
+  lcd.setCursor(0, 1);
+  lcd.print("TURN KEY TO START");
 }
 
 void updateCountdown() {
@@ -701,7 +713,8 @@ void setup() {
   // Maze module setup is deferred until after core event to save power
   // (will be called in updateMazeModule when conditions are met)
 
-  lcd.print("Starting!");
+  // Display initial idle screen
+  displayIdleScreen();
   //startMozzi(CONTROL_RATE);
   //COMMENTED OUT BECUASE WE NEED THIS BUZZER TO BE ON D9 FOR IT TO WORK
 }
