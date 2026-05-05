@@ -27,8 +27,8 @@ const int MAZE_H = 6;
 
 int playerX = 0;
 int playerY = 0;
-const int goalX = 5;
-const int goalY = 5;
+int goalX = 5;
+int goalY = 5;
 
 bool mazeSolved = false;
 bool mazeSetupDone = false;  // Track if maze LED matrix has been initialized
@@ -78,6 +78,91 @@ void addVerticalWall(int x, int y) {
 void addHorizontalWall(int x, int y) {
   wallDown[y][x] = true;
   wallUp[y + 1][x] = true;
+}
+
+bool isMazePositionReachable(int startX, int startY, int targetX, int targetY) {
+  bool visited[MAZE_H][MAZE_W];
+  for (int y = 0; y < MAZE_H; y++) {
+    for (int x = 0; x < MAZE_W; x++) {
+      visited[y][x] = false;
+    }
+  }
+
+  const int maxCells = MAZE_W * MAZE_H;
+  int queueX[maxCells];
+  int queueY[maxCells];
+  int head = 0;
+  int tail = 0;
+
+  queueX[tail] = startX;
+  queueY[tail] = startY;
+  tail++;
+  visited[startY][startX] = true;
+
+  while (head < tail) {
+    int x = queueX[head];
+    int y = queueY[head];
+    head++;
+
+    if (x == targetX && y == targetY) {
+      return true;
+    }
+
+    if (!wallRight[y][x] && !visited[y][x + 1]) {
+      visited[y][x + 1] = true;
+      queueX[tail] = x + 1;
+      queueY[tail] = y;
+      tail++;
+    }
+    if (!wallLeft[y][x] && !visited[y][x - 1]) {
+      visited[y][x - 1] = true;
+      queueX[tail] = x - 1;
+      queueY[tail] = y;
+      tail++;
+    }
+    if (!wallDown[y][x] && !visited[y + 1][x]) {
+      visited[y + 1][x] = true;
+      queueX[tail] = x;
+      queueY[tail] = y + 1;
+      tail++;
+    }
+    if (!wallUp[y][x] && !visited[y - 1][x]) {
+      visited[y - 1][x] = true;
+      queueX[tail] = x;
+      queueY[tail] = y - 1;
+      tail++;
+    }
+  }
+
+  return false;
+}
+
+void randomizeMazeStartAndGoal() {
+  const int maxAttempts = 100;
+  for (int attempt = 0; attempt < maxAttempts; attempt++) {
+    int startX = random(MAZE_W);
+    int startY = random(MAZE_H);
+    int endX = random(MAZE_W);
+    int endY = random(MAZE_H);
+
+    if (startX == endX && startY == endY) {
+      continue;
+    }
+
+    if (isMazePositionReachable(startX, startY, endX, endY)) {
+      playerX = startX;
+      playerY = startY;
+      goalX = endX;
+      goalY = endY;
+      return;
+    }
+  }
+
+  // Fallback to known-solvable corners if random attempts fail.
+  playerX = 0;
+  playerY = 0;
+  goalX = MAZE_W - 1;
+  goalY = MAZE_H - 1;
 }
 
 void setupFirstMaze() {
@@ -195,12 +280,11 @@ void setupMazeModule() {
     return;
   }
 
-  playerX = 0;
-  playerY = 0;
   mazeSolved = false;
   mazeLastLeftPos = encLeft.read() / 4;
   mazeLastRightPos = encRight.read() / 4;
   setupFirstMaze();
+  randomizeMazeStartAndGoal();
   drawScene();
 }
 
