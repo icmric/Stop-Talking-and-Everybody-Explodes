@@ -33,7 +33,7 @@ int TARGET_MIN = 10;
 int TARGET_MAX = 15;
 unsigned long DISTANCE_HOLD_TIME = 3000;
 
-const int MAX_DISTANCE = 30;
+const int MAX_DISTANCE = 100;  // Increased to accommodate all possible target distances (up to 90cm)
 
 bool distanceSolved = false;
 bool distanceInRange = false;
@@ -61,9 +61,9 @@ void setupDistanceModule() {
     requiredDistance = 90;
   }
   
-  // Set range: ±2.5cm tolerance around required distance
-  TARGET_MIN = requiredDistance - 2;
-  TARGET_MAX = requiredDistance + 2;
+  // Set range: ±5cm tolerance around required distance (less sensitive)
+  TARGET_MIN = requiredDistance - 5;
+  TARGET_MAX = requiredDistance + 5;
   
   // Hold time: last digit × 0.5 seconds, minimum 0.5 seconds
   int holdTimeMs = lastDigit * 500;  // 0.5 seconds per digit
@@ -148,10 +148,14 @@ void updateDistanceModule() {
     distance = MAX_DISTANCE;
   }
 
-  // Disable distance logging to prevent interference with frequency module
-  // Serial.print("Distance: ");
-  // Serial.print(distance);
-  // Serial.println(" cm");
+  // Debug: Log distance readings to help with calibration
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.print("cm (target: ");
+  Serial.print(TARGET_MIN);
+  Serial.print("-");
+  Serial.print(TARGET_MAX);
+  Serial.println("cm)");
 
   // Only update LED bar display if frequency module isn't using it
   if (frequencyModuleSolved) {

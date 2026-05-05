@@ -79,6 +79,19 @@ enum GameState {
 #include "ButtonComboModule.h"
 
 // =====================================================
+// DEBUG / TESTING - BYPASS FLAGS
+// =====================================================
+// Set these to true to bypass modules for testing
+// This marks them as already solved without requiring actual completion
+const bool BYPASS_FREQUENCY_MODULE = true;
+const bool BYPASS_MAZE_MODULE = true;
+const bool BYPASS_CORE_MODULE = true;
+const bool BYPASS_DISTANCE_MODULE = true;
+const bool BYPASS_BUTTON_COMBO_MODULE = false;
+const bool BYPASS_TIMER_MODULE = false;
+const bool BYPASS_SIGNAL_ALIGNMENT = true;
+
+// =====================================================
 // SHARED PIN MAP
 // =====================================================
 
@@ -141,7 +154,7 @@ const unsigned long keyDebounceDelay = 50;
 // SHARED GAME TIMER STATE
 // =====================================================
 
-const int START_MINUTES = 3;
+const int START_MINUTES = 5;
 const int START_SECONDS = 0;
 const int TIMER_TOTAL_SECONDS = START_MINUTES * 60 + START_SECONDS;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_TOTAL_SECONDS * 1000UL;
@@ -682,6 +695,40 @@ void setup() {
 
   // Maze module setup is deferred until after core event to save power
   // (will be called in updateMazeModule when conditions are met)
+
+  // =====================================================
+  // APPLY DEBUG BYPASSES
+  // =====================================================
+  if (BYPASS_FREQUENCY_MODULE) {
+    frequencyModuleSolved = true;
+    Serial.println("DEBUG: Frequency module bypassed");
+  }
+  if (BYPASS_MAZE_MODULE) {
+    mazeSolved = true;
+    mazeSetupDone = true;
+    Serial.println("DEBUG: Maze module bypassed");
+  }
+  if (BYPASS_CORE_MODULE) {
+    coreSolved = true;
+    coreTriggered = true;
+    Serial.println("DEBUG: Core module bypassed");
+  }
+  if (BYPASS_DISTANCE_MODULE) {
+    distanceSolved = true;
+    Serial.println("DEBUG: Distance module bypassed");
+  }
+  if (BYPASS_BUTTON_COMBO_MODULE) {
+    buttonComboSolved = true;
+    Serial.println("DEBUG: Button combo module bypassed");
+  }
+  if (BYPASS_TIMER_MODULE) {
+    timerModuleSolved = true;
+    Serial.println("DEBUG: Timer module bypassed");
+  }
+  if (BYPASS_SIGNAL_ALIGNMENT) {
+    signalAlignmentSolved = true;
+    Serial.println("DEBUG: Signal alignment module bypassed");
+  }
 
   lcd.print("Starting!");
   //startMozzi(CONTROL_RATE);

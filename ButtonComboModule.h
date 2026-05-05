@@ -6,12 +6,13 @@
   Always 4 button presses total (one for each digit).
   Wrong button press triggers -3 second penalty.
   
-  Serial Example (ABC1-2345):
-  - Digit 2 (EVEN) → RED
-  - Digit 3 (ODD) → GREEN  
-  - Digit 4 (EVEN) → RED
-  - Digit 5 (ODD) → GREEN
-  Sequence: RED → GREEN → RED → GREEN
+  Serial Format: ABCD-1234
+  Example: ABC1-2468
+  - Digit 1 (2 - EVEN) → RED
+  - Digit 2 (4 - EVEN) → RED  
+  - Digit 3 (6 - EVEN) → RED
+  - Digit 4 (8 - EVEN) → RED
+  Sequence: RED → RED → RED → RED
 */
 
 #ifndef BUTTON_COMBO_MODULE_H
@@ -32,7 +33,7 @@ extern bool coreSolved;
 // BUTTON COMBO MODULE
 // =====================================================
 
-const int RED_BUTTON_PIN = 11;        // Red button signal pin (D11)
+const int RED_BUTTON_PIN = 11;        // Red button signal pin (D11) - shared with timer module
 const int GREEN_BUTTON_PIN = 33;      // Green button signal pin (D33)
 const unsigned long BUTTON_TIME_LIMIT = 5000;
 
@@ -60,12 +61,9 @@ void setupButtonComboModule() {
 }
 
 void handleButtonPress(int button) {
-  // Play button tone
-  tone(BUZZER_PIN, 900, 100);
-  
   // Check if this is the correct button
   if (button == buttonSequence[buttonStepIndex]) {
-    // Correct button
+    // Correct button - no beep for correct presses
     buttonStepIndex++;
     
     if (buttonStepIndex >= sequenceLength) {
@@ -73,10 +71,10 @@ void handleButtonPress(int button) {
       playSuccessTone();
     }
   } else {
-    // Wrong button - PENALTY
+    // Wrong button - PENALTY with error tone
     applyPenalty("ButtonComboWrong");
     
-    // Play error tone
+    // Play error tone for wrong button
     tone(BUZZER_PIN, 200, 300);
     
     // Reset sequence
@@ -90,12 +88,8 @@ void updateButtonComboModule() {
     return;
   }
   
-  // Check module dependencies - only active if other modules have started
-  // Typically: only active after frequency module is complete
-  bool moduleReady = frequencyModuleSolved;
-  if (!moduleReady) {
-    return;
-  }
+  // Button combo module can be completed at any time
+  // No dependencies - player can attempt this module anytime
   
   if (!buttonStarted) {
     buttonStartTime = millis();
