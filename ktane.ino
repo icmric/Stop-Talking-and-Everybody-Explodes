@@ -169,40 +169,44 @@ unsigned long timerLastTick = 0;
 // CORE MODULE RANDOMIZATION
 // =====================================================
 
-bool coreRandomizationInitialized = false;
-unsigned long coreRandomTriggerTime = 0;
-const unsigned long CORE_MIN_DELAY = 60000;   // Minimum 60 seconds before Core can trigger
-const unsigned long CORE_MAX_DELAY = 180000;  // Maximum 180 seconds (3 minutes)
+// Track previous module states to detect transitions
+bool lastFrequencyModuleSolved = false;
+bool lastMazeSolved = false;
+bool lastDistanceSolved = false;
+bool lastButtonComboSolved = false;
+bool lastTimerModuleSolved = false;
 
-void initializeCoreRandomization() {
-  if (!coreRandomizationInitialized) {
-    // Pick random time between 60-180 seconds from game start
-    unsigned long randomDelay = CORE_MIN_DELAY + random(CORE_MAX_DELAY - CORE_MIN_DELAY);
-    coreRandomTriggerTime = millis() + randomDelay;
-    coreRandomizationInitialized = true;
-    
-    // Debug output
-    Serial.print("Core trigger scheduled for ");
-    Serial.print(randomDelay / 1000);
-    Serial.println(" seconds from now");
-  }
-}
-
-void checkAndTriggerCoreRandomly() {
-  if (!coreRandomizationInitialized) {
-    initializeCoreRandomization();
+// Check if any module just completed and trigger core randomly (50% chance on completion)
+void checkModuleTransitionsAndTriggerCore() {
+  if (coreTriggered || coreSolved) {
+    // Core already triggered or solved, no need to check further
+    return;
   }
   
-  // Check if it's time to trigger core event
-  if (!coreTriggered && millis() >= coreRandomTriggerTime) {
-    // Trigger core with some probability to add more randomness
-    if (random(100) < 80) {  // 80% chance to trigger when time is reached
+  // Check if any module transitioned from unsolved to solved
+  bool frequencyJustCompleted = !lastFrequencyModuleSolved && frequencyModuleSolved;
+  bool mazeJustCompleted = !lastMazeSolved && mazeSolved;
+  bool distanceJustCompleted = !lastDistanceSolved && distanceSolved;
+  bool buttonComboJustCompleted = !lastButtonComboSolved && buttonComboSolved;
+  bool timerJustCompleted = !lastTimerModuleSolved && timerModuleSolved;
+  
+  if (frequencyJustCompleted || mazeJustCompleted || distanceJustCompleted || 
+      buttonComboJustCompleted || timerJustCompleted) {
+    Serial.println("Module completed - Rolling for core event (50% chance)");
+    
+    // 50% chance to trigger core event immediately
+    if (random(100) < 50) {
+      Serial.println("Core event triggered!");
       triggerCoreEvent();
-    } else {
-      // Reschedule for 5 seconds later
-      coreRandomTriggerTime = millis() + 5000;
     }
   }
+  
+  // Update tracking variables
+  lastFrequencyModuleSolved = frequencyModuleSolved;
+  lastMazeSolved = mazeSolved;
+  lastDistanceSolved = distanceSolved;
+  lastButtonComboSolved = buttonComboSolved;
+  lastTimerModuleSolved = timerModuleSolved;
 }
 
 // =====================================================
@@ -401,7 +405,8 @@ void displayInitialScreen() {
 }
 
 void displaySerialNumber() {
-  // Display serial number on LCD (line 0) with remaining time or status (line 1)
+  // Display serial number on LCD - this is the only display during normal gameplay
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("SN:");
   lcd.print(bombSerialNumber);
@@ -443,7 +448,9 @@ void updateDisplayState() {
   // Update display based on current game state
   // Only update when state changes to avoid flickering
   if (currentGameState != lastDisplayedGameState) {
-    if (currentGameState == STATE_FAILED) {
+    if (currentGameState == STATE_IDLE) {
+      displayIdleScreen();
+    } else if (currentGameState == STATE_FAILED) {
       displayGameOverFailed();
     } else if (currentGameState == STATE_DISARMED) {
       displayBombDisarmed();
@@ -488,6 +495,14 @@ void handleKeySwitch() {
       stopBuzzer();
       // LCD display will be updated by updateDisplayState()
     } else if (currentGameState == STATE_WON) {
+      // Force trigger core if it hasn't been triggered yet before allowing disarm
+      if (!coreTriggered && !coreSolved) {
+        Serial.println("Key turning OFF but core not triggered - forcing core event now!");
+        triggerCoreEvent();
+        // Give core event a moment to activate
+        delay(100);
+      }
+      
       Serial.println("Key turned OFF after modules solved - Bomb DISARMED");
       currentGameState = STATE_DISARMED;
       timerRunning = false;
@@ -500,6 +515,12 @@ void handleKeySwitch() {
 void updateGameState() {
   // Check if we should transition from RUNNING to WON
   if (currentGameState == STATE_RUNNING && allModulesSolved()) {
+    // Force trigger core if it hasn't been triggered yet
+    if (!coreTriggered && !coreSolved) {
+      Serial.println("All modules solved but core not triggered - forcing core event now!");
+      triggerCoreEvent();
+    }
+    
     Serial.println("All modules solved - waiting for key OFF to disarm");
     currentGameState = STATE_WON;
     // Don't stop timer yet - it continues until key is turned off
@@ -540,6 +561,15 @@ void setupTimerModule() {
   displayInitialScreen();
   
   timerLastTick = millis();
+}
+
+void displayIdleScreen() {
+  // Display "Bomb Armed" on LCD while waiting for key to be turned on
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("BOMB ARMED");
+  lcd.setCursor(0, 1);
+  lcd.print("TURN KEY TO START");
 }
 
 void updateCountdown() {
@@ -748,15 +778,8 @@ void loop() {
 
   // Only update modules if game is running or won
   if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
-    // Check if Core should be triggered (probabilistic, after >= 1 module solved)
-    if (!coreTriggered) {
-      int modulesSolved = (frequencyModuleSolved ? 1 : 0) + (mazeSolved ? 1 : 0) + 
-                          (distanceSolved ? 1 : 0) + (buttonComboSolved ? 1 : 0) + 
-                          (timerModuleSolved ? 1 : 0);
-      if (modulesSolved >= 1) {
-        checkAndTriggerCoreRandomly();
-      }
-    }
+    // Check if modules just completed and trigger core event randomly (50% chance)
+    checkModuleTransitionsAndTriggerCore();
     
     updateTimerModule();
     updateBuzzerModule();
