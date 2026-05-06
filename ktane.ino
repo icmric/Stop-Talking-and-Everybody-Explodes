@@ -51,6 +51,7 @@
 #include "SerialNumberGenerator.h"
 #include "SerialNumberParser.h"
 #include "signalAlignment.h"
+#include "compassCalibration.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -87,9 +88,9 @@ const bool BYPASS_FREQUENCY_MODULE = true;
 const bool BYPASS_MAZE_MODULE = true;
 const bool BYPASS_CORE_MODULE = true;
 const bool BYPASS_DISTANCE_MODULE = true;
-const bool BYPASS_BUTTON_COMBO_MODULE = false;
-const bool BYPASS_TIMER_MODULE = false;
-const bool BYPASS_SIGNAL_ALIGNMENT = true;
+const bool BYPASS_BUTTON_COMBO_MODULE = true;
+const bool BYPASS_TIMER_MODULE = true;
+const bool BYPASS_SIGNAL_ALIGNMENT = false;
 
 // =====================================================
 // SHARED PIN MAP
@@ -140,6 +141,7 @@ GroveTwoRGBLedMatrixClass matrix;
 
 ActiveEncoderModule activeEncoderModule = FREQUENCY_MODULE;
 GameState currentGameState = STATE_IDLE;
+bool signalAlignmentModuleActive = false;  // Flag for signal alignment module
 
 // Serial number for the bomb
 String bombSerialNumber = "";
@@ -722,6 +724,7 @@ void setup() {
   setupDistanceModule();
   setupButtonComboModule();
   setupTimerModule();
+  runCompassCalibration();
 
   // Maze module setup is deferred until after core event to save power
   // (will be called in updateMazeModule when conditions are met)

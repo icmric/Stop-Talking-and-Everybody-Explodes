@@ -20,6 +20,8 @@
 // Forward declarations
 extern void playSuccessTone();
 extern String bombSerialNumber;
+extern Grove_LED_Bar ledBar;
+extern bool signalAlignmentModuleActive;  // Flag to indicate when signal alignment is running
 
 #include <Wire.h>
 #include <MozziGuts.h>
@@ -63,6 +65,39 @@ int updateAudio() {
 
 bool inNorthWindow(int h) { return (h >= 340 || h <= 20); }
 bool inSouthWindow(int h) { return (h >= 150 && h <= 210); }
+
+// Calculate distance from heading to nearest target direction
+// Returns 0-180 degrees (closest direction)
+int getDeviationFromTarget(int heading, bool targetNorth) {
+  int targetHeading = targetNorth ? 0 : 180;
+  int deviation = abs(heading - targetHeading);
+  // Wrap around 360 degrees
+  if (deviation > 180) {
+    deviation = 360 - deviation;
+  }
+  return deviation;
+}
+
+// Update LED bar based on how close we are to the target direction
+// Maximum deviation is 180 degrees, so we use this to map to LED levels
+void updateSignalAlignmentLED(int heading, bool targetNorth) {
+  int deviation = getDeviationFromTarget(heading, targetNorth);
+  
+  // Map 0-180 degrees to 10-0 LED levels (closer = more LEDs lit)
+  // 0-20 degrees (in target window) = full 10 LEDs
+  // 180 degrees (opposite direction) = 0 LEDs
+  int ledLevel;
+  if (deviation <= 20) {
+    ledLevel = 10;  // In target window
+  } else if (deviation >= 170) {
+    ledLevel = 0;   // Opposite direction
+  } else {
+    // Linear interpolation between 20-170 degrees
+    ledLevel = map(deviation, 20, 170, 9, 1);
+  }
+  
+  ledBar.setLevel(ledLevel);
+}
 
 int headingToPitch(int h) {
   if (h <= 180) return map(h, 0, 180, PITCH_HIGH, PITCH_LOW);
@@ -138,7 +173,10 @@ void updateSignalAlignmentModule() {
     float headingRad = atan2(cy, cx);
     if (headingRad < 0) headingRad += 2 * PI;
     signalHeading     = (int)(headingRad * 180.0 / PI);
-    signalCurrentFreq = headingToPitch(signalHeading);
+    
+    // Update LED bar based on heading (instead of Mozzi pitch)
+    bool targetNorth = getTargetNorth(signalStage);
+    updateSignalAlignmentLED(signalHeading, targetNorth);
   }
 
   bool targetNorth = getTargetNorth(signalStage);
@@ -157,7 +195,7 @@ void updateSignalAlignmentModule() {
 
       if (signalStage == 2) {
         signalAlignmentSolved = true;
-        signalCurrentFreq = 0;
+        ledBar.setLevel(0);  // Turn off LED bar when complete
         Serial.println(F("SIGNAL LOCKED - MODULE COMPLETE"));
       } else {
         signalStage++;
