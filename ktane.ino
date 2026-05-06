@@ -87,10 +87,10 @@ enum GameState {
 const bool BYPASS_FREQUENCY_MODULE = true;
 const bool BYPASS_MAZE_MODULE = true;
 const bool BYPASS_CORE_MODULE = true;
-const bool BYPASS_DISTANCE_MODULE = true;
+const bool BYPASS_DISTANCE_MODULE = false;
 const bool BYPASS_BUTTON_COMBO_MODULE = true;
 const bool BYPASS_TIMER_MODULE = true;
-const bool BYPASS_SIGNAL_ALIGNMENT = false;
+const bool BYPASS_SIGNAL_ALIGNMENT = true;
 
 // =====================================================
 // SHARED PIN MAP
@@ -174,9 +174,17 @@ unsigned long timerLastTick = 0;
 // Track previous module states to detect transitions
 bool lastFrequencyModuleSolved = false;
 bool lastMazeSolved = false;
+bool lastCoreModuleSolved = false;
 bool lastDistanceSolved = false;
 bool lastButtonComboSolved = false;
 bool lastTimerModuleSolved = false;
+bool lastSignalAlignmentSolved = false;
+
+// =====================================================
+// MODULE START/COMPLETION TRACKING
+// =====================================================
+
+
 
 // Check if any module just completed and trigger core randomly (50% chance on completion)
 void checkModuleTransitionsAndTriggerCore() {
@@ -399,6 +407,34 @@ bool allModulesSolved() {
   return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && timerModuleSolved && signalAlignmentSolved;
 }
 
+// =====================================================
+// MODULE COUNTING FUNCTIONS
+// =====================================================
+
+int getTotalModuleCount() {
+  int count = 0;
+  if (!BYPASS_FREQUENCY_MODULE) count++;
+  if (!BYPASS_MAZE_MODULE) count++;
+  if (!BYPASS_CORE_MODULE) count++;
+  if (!BYPASS_DISTANCE_MODULE) count++;
+  if (!BYPASS_BUTTON_COMBO_MODULE) count++;
+  if (!BYPASS_TIMER_MODULE) count++;
+  if (!BYPASS_SIGNAL_ALIGNMENT) count++;
+  return count;
+}
+
+int getSolvedModuleCount() {
+  int count = 0;
+  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) count++;
+  if (!BYPASS_MAZE_MODULE && mazeSolved) count++;
+  if (!BYPASS_CORE_MODULE && coreSolved) count++;
+  if (!BYPASS_DISTANCE_MODULE && distanceSolved) count++;
+  if (!BYPASS_BUTTON_COMBO_MODULE && buttonComboSolved) count++;
+  if (!BYPASS_TIMER_MODULE && timerModuleSolved) count++;
+  if (!BYPASS_SIGNAL_ALIGNMENT && signalAlignmentSolved) count++;
+  return count;
+}
+
 void displayInitialScreen() {
   // Display "8888" on 7-segment display
   int8_t displayDigits[4] = {8, 8, 8, 8};
@@ -412,6 +448,23 @@ void displaySerialNumber() {
   lcd.setCursor(0, 0);
   lcd.print("SN:");
   lcd.print(bombSerialNumber);
+  
+  // Display module count on bottom right
+  updateModuleCountDisplay();
+}
+
+void updateModuleCountDisplay() {
+  // Update just the module count on line 1 without clearing the screen
+  int solvedCount = getSolvedModuleCount();
+  int totalCount = getTotalModuleCount();
+  
+  // Format the count string (e.g., "6/6")
+  String countStr = String(solvedCount) + "/" + String(totalCount);
+  
+  // Position on the right side of row 1 (assuming 16-char display, right-align the count)
+  int startCol = 16 - countStr.length();
+  lcd.setCursor(startCol, 1);
+  lcd.print(countStr);
 }
 
 void displayBombDisarmed() {
@@ -419,8 +472,9 @@ void displayBombDisarmed() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("BOMB DISARMED");
-  lcd.setCursor(0, 1);
-  lcd.print("SUCCESS!");
+  
+  // Display module count on bottom right: "X/Y"
+  updateModuleCountDisplay();
   
   // Also try to clear the 7-segment display
   int8_t blank[4] = {-1, -1, -1, -1};
@@ -467,6 +521,13 @@ void updateDisplayState() {
     if (!coreTriggered || coreSolved) {
       displaySerialNumber();
       serialNumberDisplayed = true;
+    }
+  }
+  
+  // Update module count during normal gameplay
+  if ((currentGameState == STATE_RUNNING || currentGameState == STATE_WON) && serialNumberDisplayed) {
+    if (!coreTriggered || coreSolved) {
+      updateModuleCountDisplay();
     }
   }
 }
@@ -597,15 +658,12 @@ void updateCountdown() {
       timerFinished = true;
       stopBuzzer();
       
-      // If we were in STATE_WON, the bomb still explodes if key isn't turned off
-      if (currentGameState == STATE_WON) {
-        // Timer expired even though modules were complete - player failed to turn off key
+      // Change game state to FAILED regardless of current state
+      if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
         currentGameState = STATE_FAILED;
-        updateTimerDisplay();
-      } else if (currentGameState == STATE_RUNNING) {
-        // Timer expired during normal gameplay
-        updateTimerDisplay();
       }
+      
+      updateTimerDisplay();
     }
   }
 }
@@ -724,7 +782,7 @@ void setup() {
   setupDistanceModule();
   setupButtonComboModule();
   setupTimerModule();
-  runCompassCalibration();
+  //runCompassCalibration();
 
   // Maze module setup is deferred until after core event to save power
   // (will be called in updateMazeModule when conditions are met)
@@ -802,15 +860,15 @@ void loop() {
       } else if (activeEncoderModule == MAZE_MODULE) {
         updateMazeModule();
       }
-    // Signal alignment activates once all other modules are done
-      if (frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved) {
-        static bool signalSetupDone = false;
-        if (!signalSetupDone) {
-          setupSignalAlignmentModule();
-          signalSetupDone = true;
-        }
-        updateSignalAlignmentModule();
-      }
+      // Signal alignment disabled for testing
+      // if (frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved) {
+      //   static bool signalSetupDone = false;
+      //   if (!signalSetupDone) {
+      //     setupSignalAlignmentModule();
+      //     signalSetupDone = true;
+      //   }
+      //   updateSignalAlignmentModule();
+      // }
     }
   }
 }

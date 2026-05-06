@@ -33,7 +33,7 @@ int TARGET_MIN = 10;
 int TARGET_MAX = 15;
 unsigned long DISTANCE_HOLD_TIME = 3000;
 
-const int MAX_DISTANCE = 100;  // Increased to accommodate all possible target distances (up to 90cm)
+const int MAX_DISTANCE = 100;  // Maximum distance to measure
 
 bool distanceSolved = false;
 bool distanceInRange = false;
@@ -56,9 +56,9 @@ void setupDistanceModule() {
     requiredDistance = 10;
   }
   
-  // Cap at 90cm (reasonable maximum)
-  if (requiredDistance > 90) {
-    requiredDistance = 90;
+  // Cap at 50cm (after scaling, this is ~25cm actual distance, still within sensor range)
+  if (requiredDistance > 50) {
+    requiredDistance = 50;
   }
   
   // Set range: ±5cm tolerance around required distance (less sensitive)
@@ -87,17 +87,34 @@ void setupDistanceModule() {
 
 void updateDistanceDisplay(int distance) {
   int level;
-
-  if (distance < TARGET_MIN) {
-    level = map(distance, 0, TARGET_MIN, 0, 4);
+  
+  // If in valid range, lock bar at full to avoid jittering
+  if (distance >= TARGET_MIN && distance <= TARGET_MAX) {
+    level = 10;
+  } else {
+    // Calculate the center of the target range
+    int centerTarget = (TARGET_MIN + TARGET_MAX) / 2;
+    int tolerance = (TARGET_MAX - TARGET_MIN) / 2;
+    
+    // Calculate how far from the center target
+    int distanceFromCenter = abs(distance - centerTarget);
+    
+    // Map distance from center to LED level
+    // At center = level 10 (full bar)
+    // At edge of range = level 5
+    // Further away = lower levels
+    
+    if (distanceFromCenter <= tolerance) {
+      // In acceptable range - map 0 to tolerance to levels 10 to 5
+      level = map(distanceFromCenter, 0, tolerance, 10, 5);
+    } else {
+      // Outside acceptable range - map beyond tolerance down to level 1
+      int maxDistance = 2 * tolerance;
+      level = map(distanceFromCenter, tolerance, tolerance + maxDistance, 5, 1);
+      if (level < 1) level = 1;
+    }
   }
-  else if (distance > TARGET_MAX) {
-    level = map(distance, TARGET_MAX, MAX_DISTANCE, 6, 10);
-  }
-  else {
-    level = 5;
-  }
-
+  
   ledBar.setLevel(level);
 }
 
