@@ -202,11 +202,8 @@ void checkModuleTransitionsAndTriggerCore() {
   
   if (frequencyJustCompleted || mazeJustCompleted || distanceJustCompleted || 
       buttonComboJustCompleted || timerJustCompleted) {
-    Serial.println("Module completed - Rolling for core event (50% chance)");
-    
     // 50% chance to trigger core event immediately
     if (random(100) < 50) {
-      Serial.println("Core event triggered!");
       triggerCoreEvent();
     }
   }
@@ -476,9 +473,8 @@ void displayBombDisarmed() {
   // Display module count on bottom right: "X/Y"
   updateModuleCountDisplay();
   
-  // Also try to clear the 7-segment display
-  int8_t blank[4] = {-1, -1, -1, -1};
-  tm1637.display(blank);
+  // Keep the timer display visible (don't blank it)
+  updateTimerDisplay();
 }
 
 void displayGameOverFailed() {
@@ -495,6 +491,9 @@ void displayGameOverFailed() {
   
   lcd.setCursor(0, 1);
   lcd.print("KEY TURNED OFF");
+  
+  // Keep the timer display visible
+  updateTimerDisplay();
 }
 
 bool lastDisplayedGameState = -1;
@@ -541,7 +540,6 @@ void handleKeySwitch() {
   if (keyCurrentState == HIGH) {
     // Key is ON
     if (currentGameState == STATE_IDLE) {
-      Serial.println("Key turned ON - Starting game");
       currentGameState = STATE_RUNNING;
       timerRunning = true;
       timerFinished = false;
@@ -552,7 +550,6 @@ void handleKeySwitch() {
   } else {
     // Key is OFF
     if (currentGameState == STATE_RUNNING) {
-      Serial.println("Key turned OFF while running - Game FAILED");
       currentGameState = STATE_FAILED;
       timerRunning = false;
       stopBuzzer();
@@ -560,13 +557,11 @@ void handleKeySwitch() {
     } else if (currentGameState == STATE_WON) {
       // Force trigger core if it hasn't been triggered yet before allowing disarm
       if (!coreTriggered && !coreSolved) {
-        Serial.println("Key turning OFF but core not triggered - forcing core event now!");
         triggerCoreEvent();
         // Give core event a moment to activate
         delay(100);
       }
       
-      Serial.println("Key turned OFF after modules solved - Bomb DISARMED");
       currentGameState = STATE_DISARMED;
       timerRunning = false;
       stopBuzzer();
@@ -580,11 +575,9 @@ void updateGameState() {
   if (currentGameState == STATE_RUNNING && allModulesSolved()) {
     // Force trigger core if it hasn't been triggered yet
     if (!coreTriggered && !coreSolved) {
-      Serial.println("All modules solved but core not triggered - forcing core event now!");
       triggerCoreEvent();
     }
     
-    Serial.println("All modules solved - waiting for key OFF to disarm");
     currentGameState = STATE_WON;
     // Don't stop timer yet - it continues until key is turned off
   }
@@ -636,6 +629,12 @@ void displayIdleScreen() {
 }
 
 void updateCountdown() {
+  // Always keep the timer display updated while in gameplay states
+  if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON || currentGameState == STATE_FAILED) {
+    updateTimerDisplay();
+  }
+  
+  // Only run the countdown if timer is actively running
   if (!timerRunning || timerFinished) {
     return;
   }
@@ -647,9 +646,6 @@ void updateCountdown() {
 
     if (remainingSeconds > 0) {
       remainingSeconds--;
-      if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
-        updateTimerDisplay();
-      }
     }
 
     if (remainingSeconds <= 0) {
@@ -662,8 +658,6 @@ void updateCountdown() {
       if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
         currentGameState = STATE_FAILED;
       }
-      
-      updateTimerDisplay();
     }
   }
 }
@@ -837,13 +831,16 @@ void loop() {
   // Always update display state regardless of game state
   updateDisplayState();
 
+  // Always update countdown to keep timer display showing (even when failed)
+  updateCountdown();
+  updateBuzzerModule();
+
   // Only update modules if game is running or won
   if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
     // Check if modules just completed and trigger core event randomly (50% chance)
     checkModuleTransitionsAndTriggerCore();
     
     updateTimerModule();
-    updateBuzzerModule();
     updateCoreModule();
     
     // Pause all other modules while core event is active/flashing

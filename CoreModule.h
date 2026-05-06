@@ -64,7 +64,7 @@ void triggerCoreEvent() {
     coreFlashing = true;
     coreFlashStart = millis();
     coreMessageShown = false;  // Reset message flag to show the message
-    Serial.println("Core module triggered with alert flash!");
+
   }
 }
 

@@ -230,7 +230,7 @@ void checkMazeSolved() {
   if (playerX == goalX && playerY == goalY) {
     mazeSolved = true;
     drawScene();
-    Serial.println("Maze solved!");
+
   }
 }
 

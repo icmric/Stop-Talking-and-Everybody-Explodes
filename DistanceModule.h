@@ -125,12 +125,10 @@ void checkDistanceHold(int distance) {
     if (!distanceInRange) {
       distanceInRange = true;
       distanceHoldStart = millis();
-      Serial.println("Distance: Hold started");
     }
 
     if (millis() - distanceHoldStart >= DISTANCE_HOLD_TIME) {
       distanceSolved = true;
-      Serial.println("Distance module solved!");
 
       // Play success tone and flash LED bar
       playSuccessTone();
@@ -164,15 +162,6 @@ void updateDistanceModule() {
   if (distance <= 0 || distance > MAX_DISTANCE) {
     distance = MAX_DISTANCE;
   }
-
-  // Debug: Log distance readings to help with calibration
-  Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.print("cm (target: ");
-  Serial.print(TARGET_MIN);
-  Serial.print("-");
-  Serial.print(TARGET_MAX);
-  Serial.println("cm)");
 
   // Only update LED bar display if frequency module isn't using it
   if (frequencyModuleSolved) {
