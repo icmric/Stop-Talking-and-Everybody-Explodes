@@ -434,7 +434,15 @@ bool readKeySwitchDebounced() {
 }
 
 bool allModulesSolved() {
-  return frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved && timerModuleSolved && signalAlignmentSolved;
+    bool solved = true;
+    if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) solved = false;
+    if (!BYPASS_MAZE_MODULE && !mazeSolved) solved = false;
+    if (!BYPASS_CORE_MODULE && !coreSolved) solved = false;
+    if (!BYPASS_DISTANCE_MODULE && !distanceSolved) solved = false;
+    if (!BYPASS_BUTTON_COMBO_MODULE && !buttonComboSolved) solved = false;
+    if (!BYPASS_TIMER_MODULE && !timerModuleSolved) solved = false;
+    if (!BYPASS_SIGNAL_ALIGNMENT && !signalAlignmentSolved) solved = false;
+    return solved;
 }
 
 // =====================================================
@@ -765,9 +773,13 @@ bool activate(const char* target) {
     return false;
   }
 
-  // Only allow button press after all other modules are completed
-  bool otherModulesComplete = frequencyModuleSolved && mazeSolved && coreSolved && 
-                               distanceSolved && buttonComboSolved;
+  // Only allow button press after all other non-bypassed modules are completed
+  bool otherModulesComplete = true;
+  if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) otherModulesComplete = false;
+  if (!BYPASS_MAZE_MODULE && !mazeSolved) otherModulesComplete = false;
+  if (!BYPASS_CORE_MODULE && !coreSolved) otherModulesComplete = false;
+  if (!BYPASS_DISTANCE_MODULE && !distanceSolved) otherModulesComplete = false;
+  if (!BYPASS_BUTTON_COMBO_MODULE && !buttonComboSolved) otherModulesComplete = false;
   if (!otherModulesComplete) {
     digitalWrite(LED_PIN, LOW);
     return false;
@@ -794,6 +806,9 @@ bool activate(const char* target) {
     timerModuleSolved = true;  // Mark module as solved
     digitalWrite(LED_PIN, LOW);  // Turn off LED
     return true;
+  } else {
+    // Button pressed at wrong time - apply penalty
+    applyPenalty("TimerWrongTime");
   }
 
   digitalWrite(LED_PIN, LOW);
@@ -901,14 +916,15 @@ void loop() {
     updateTimerModule();
     updateCoreModule();
     
+    // Button combo can always be attempted, even during Core event
+    updateButtonComboModule();
+    
     // Pause all other modules while core event is active/flashing
     if (!coreTriggered || coreSolved) {
       // Disable distance module until after maze is complete to prevent ultrasonic interference
-      if (mazeSolved) {
+      if (mazeSolved && !BYPASS_DISTANCE_MODULE) {
         updateDistanceModule();
       }
-      
-      updateButtonComboModule();
 
       if (activeEncoderModule == FREQUENCY_MODULE) {
         updateFrequencyModule();

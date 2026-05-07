@@ -84,13 +84,13 @@ void updateFrequencyModule() {
     
     if (change != 0) {
       int dir = (change > 0) ? 1 : -1;
-      freqLastLeftRead = leftNow;
+    freqLastLeftRead = leftNow;
       
       if (dir == needDirection) {
         // Correct direction
         freqClicks += abs(change);
-        freqLastClickTime = millis();
-      } else {
+      freqLastClickTime = millis();
+    } else {
         // Wrong direction on left encoder - PENALTY
         applyPenalty("FreqWrongDirection");
         freqClicks = 0;
@@ -99,19 +99,28 @@ void updateFrequencyModule() {
         freqLastRightRead = encRight.read() / 4;
       }
     }
-  } 
+
+    // Penalize wrong encoder input without affecting correct input logic
+    long wrongChange = rightNow - freqLastRightRead;
+    if (wrongChange != 0) {
+      for (int i = 0; i < abs(wrongChange); i++) {
+        applyPenalty("FreqWrongEncoder");
+      }
+      freqLastRightRead = rightNow;
+    }
+  }
   else if (needEncoder == 'R') {
     long change = rightNow - freqLastRightRead;
-    
+
     if (change != 0) {
       int dir = (change > 0) ? 1 : -1;
-      freqLastRightRead = rightNow;
+    freqLastRightRead = rightNow;
       
       if (dir == needDirection) {
         // Correct direction
         freqClicks += abs(change);
-        freqLastClickTime = millis();
-      } else {
+      freqLastClickTime = millis();
+    } else {
         // Wrong direction on right encoder - PENALTY
         applyPenalty("FreqWrongDirection");
         freqClicks = 0;
@@ -119,6 +128,15 @@ void updateFrequencyModule() {
         freqLastLeftRead = encLeft.read() / 4;
         freqLastRightRead = encRight.read() / 4;
       }
+    }
+
+    // Penalize wrong encoder input without affecting correct input logic
+    long wrongChange = leftNow - freqLastLeftRead;
+    if (wrongChange != 0) {
+      for (int i = 0; i < abs(wrongChange); i++) {
+        applyPenalty("FreqWrongEncoder");
+      }
+      freqLastLeftRead = leftNow;
     }
   }
   else if (needEncoder != ' ') {
