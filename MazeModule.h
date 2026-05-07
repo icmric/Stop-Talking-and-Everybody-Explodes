@@ -342,10 +342,11 @@ void updateMazeModule() {
   long currRight = encRight.read() / 4;
   if (currRight != mazeLastRightPos && now - mazeLastMoveTime > mazeMoveDelay) {
     if (currRight > mazeLastRightPos) {
-      changed = moveDown();
-    } else {
       changed = moveUp();
+    } else {
+      changed = moveDown();
     }
+      
     mazeLastRightPos = currRight;
     if (changed) {
       mazeLastMoveTime = now;

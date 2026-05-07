@@ -849,6 +849,7 @@ void setup() {
   setupDistanceModule();
   setupButtonComboModule();
   setupTimerModule();
+  clearMazeDisplay();
   //runCompassCalibration();
 
   // Maze module setup is deferred until after core event to save power
