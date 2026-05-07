@@ -87,10 +87,10 @@ enum GameState {
 const bool BYPASS_FREQUENCY_MODULE = false;
 const bool BYPASS_MAZE_MODULE = false;
 const bool BYPASS_CORE_MODULE = false;
-const bool BYPASS_DISTANCE_MODULE = false;
+const bool BYPASS_DISTANCE_MODULE = true; // DISABLED PERMINANTLY
 const bool BYPASS_BUTTON_COMBO_MODULE = false;
 const bool BYPASS_TIMER_MODULE = false;
-const bool BYPASS_SIGNAL_ALIGNMENT = true;
+const bool BYPASS_SIGNAL_ALIGNMENT = true; // DISABLED PERMINANTLY
 
 // =====================================================
 // SHARED PIN MAP
@@ -156,7 +156,7 @@ const unsigned long keyDebounceDelay = 50;
 // SHARED GAME TIMER STATE
 // =====================================================
 
-const int START_MINUTES = 5;
+const int START_MINUTES = 7;
 const int START_SECONDS = 0;
 const int TIMER_TOTAL_SECONDS = START_MINUTES * 60 + START_SECONDS;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_TOTAL_SECONDS * 1000UL;
