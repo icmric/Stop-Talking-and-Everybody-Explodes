@@ -64,7 +64,13 @@ void triggerCoreEvent() {
     coreFlashing = true;
     coreFlashStart = millis();
     coreMessageShown = false;  // Reset message flag to show the message
-
+    
+    // Clear the maze display when core is triggered
+    extern bool mazeSetupDone;
+    extern void clearMazeDisplay();
+    if (mazeSetupDone) {
+      clearMazeDisplay();
+    }
   }
 }
 

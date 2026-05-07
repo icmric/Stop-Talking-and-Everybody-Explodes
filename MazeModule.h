@@ -32,6 +32,9 @@ int goalY = 5;
 
 bool mazeSolved = false;
 bool mazeSetupDone = false;  // Track if maze LED matrix has been initialized
+bool mazeDisplayCleared = false;  // Track if maze display has been cleared after solving
+unsigned long mazeSolvedTime = 0;  // Track when maze was solved (to delay clearing)
+const unsigned long MAZE_CLEAR_DELAY = 1500;  // Show solution for 1.5 seconds before clearing
 uint8_t frame[64];
 long mazeLastLeftPos = 0;
 long mazeLastRightPos = 0;
@@ -226,9 +229,18 @@ void drawScene() {
   matrix.displayFrames(frame, 0, true, 1);
 }
 
+void clearMazeDisplay() {
+  // Clear all pixels to black
+  for (int i = 0; i < 64; i++) {
+    frame[i] = black;
+  }
+  matrix.displayFrames(frame, 0, true, 1);
+}
+
 void checkMazeSolved() {
   if (playerX == goalX && playerY == goalY) {
     mazeSolved = true;
+    mazeSolvedTime = millis();  // Record when maze was solved
     drawScene();
 
   }
@@ -290,12 +302,20 @@ void setupMazeModule() {
 
 void updateMazeModule() {
   if (mazeSolved) {
+    // Clear the maze display after 1.5 second delay when the maze is first solved
+    if (!mazeDisplayCleared) {
+      unsigned long now = millis();
+      if (now - mazeSolvedTime >= MAZE_CLEAR_DELAY) {
+        clearMazeDisplay();
+        mazeDisplayCleared = true;
+      }
+    }
     return;
   }
 
   // Lazy initialization: only setup maze after core is solved to save power
   if (!mazeSetupDone) {
-    if (activeEncoderModule != MAZE_MODULE || coreTriggered && !coreSolved) {
+    if (activeEncoderModule != MAZE_MODULE || (coreTriggered && !coreSolved)) {
       return;  // Wait until core event is complete before setting up maze
     }
     setupMazeModule();

@@ -68,14 +68,10 @@ void handleButtonPress(int button) {
     
     if (buttonStepIndex >= sequenceLength) {
       buttonComboSolved = true;
-      playSuccessTone();
     }
   } else {
-    // Wrong button - PENALTY with error tone
+    // Wrong button - PENALTY
     applyPenalty("ButtonComboWrong");
-    
-    // Play error tone for wrong button
-    tone(BUZZER_PIN, 200, 300);
     
     // Reset sequence
     buttonStepIndex = 0;

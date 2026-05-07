@@ -162,7 +162,7 @@ const int TIMER_TOTAL_SECONDS = START_MINUTES * 60 + START_SECONDS;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_TOTAL_SECONDS * 1000UL;
 
 int remainingSeconds = TIMER_TOTAL_SECONDS;
-bool timerRunning = true;
+bool timerRunning = false;
 bool timerFinished = false;
 bool timerModuleSolved = false;  // Track if timer module has been solved
 unsigned long timerLastTick = 0;
@@ -266,7 +266,40 @@ float getTimerProgress() {
   return progress;
 }
 
+// Emergency beeping pattern during Core overheating event
+void updateCoreEmergencyBeeping() {
+  if (!coreMessageShown || coreSolved) {
+    return;
+  }
+
+  unsigned long now = millis();
+  
+  // Emergency pattern: 3 rapid beeps (200ms each) followed by 400ms silence, repeating
+  // Total cycle: 1000ms (3x200ms beeps + 400ms silence)
+  unsigned long cycleTime = now % 1000;
+  
+  if (cycleTime < 200) {
+    // First beep
+    tone(BUZZER_PIN, 1500, 200);
+  } else if (cycleTime >= 250 && cycleTime < 450) {
+    // Second beep
+    tone(BUZZER_PIN, 1500, 200);
+  } else if (cycleTime >= 500 && cycleTime < 700) {
+    // Third beep
+    tone(BUZZER_PIN, 1500, 200);
+  } else {
+    // Silence period
+    noTone(BUZZER_PIN);
+  }
+}
+
 void updateBuzzerModule() {
+  // Core emergency beeping takes priority
+  if (coreMessageShown && !coreSolved) {
+    updateCoreEmergencyBeeping();
+    return;
+  }
+
   if (!timerRunning || timerFinished || remainingSeconds <= 0) {
     noTone(BUZZER_PIN);
     return;
@@ -546,6 +579,31 @@ void handleKeySwitch() {
       timerLastTick = millis();
       remainingSeconds = TIMER_TOTAL_SECONDS;
       updateTimerDisplay();
+      
+      // Reset maze module state for new game
+      extern bool mazeSetupDone;
+      extern bool mazeDisplayCleared;
+      mazeSetupDone = false;
+      mazeDisplayCleared = false;
+      
+      // Reset module transition tracking to prevent false Core triggers
+      lastFrequencyModuleSolved = false;
+      lastMazeSolved = false;
+      lastCoreModuleSolved = false;
+      lastDistanceSolved = false;
+      lastButtonComboSolved = false;
+      lastTimerModuleSolved = false;
+      lastSignalAlignmentSolved = false;
+      
+      // Reset actual module solved states for new game
+      frequencyModuleSolved = false;
+      mazeSolved = false;
+      coreTriggered = false;
+      coreSolved = false;
+      distanceSolved = false;
+      buttonComboSolved = false;
+      timerModuleSolved = false;
+      signalAlignmentSolved = false;
     }
   } else {
     // Key is OFF
@@ -625,7 +683,7 @@ void displayIdleScreen() {
   lcd.setCursor(0, 0);
   lcd.print("BOMB ARMED");
   lcd.setCursor(0, 1);
-  lcd.print("TURN KEY TO START");
+  lcd.print("TURN KEY");
 }
 
 void updateCountdown() {
