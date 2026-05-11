@@ -45,6 +45,7 @@ unsigned long buttonStartTime = 0;
 bool buttonStarted = false;
 bool buttonComboSolved = false;
 bool buttonComboActive = false;
+unsigned long buttonComboSolvedTime = 0;
 
 void setupButtonComboModule() {
   pinMode(RED_BUTTON_PIN, INPUT_PULLUP);
@@ -68,6 +69,7 @@ void handleButtonPress(int button) {
     
     if (buttonStepIndex >= sequenceLength) {
       buttonComboSolved = true;
+      buttonComboSolvedTime = millis();
     }
   } else {
     // Wrong button - PENALTY

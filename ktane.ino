@@ -773,6 +773,13 @@ bool activate(const char* target) {
     return false;
   }
 
+  // Avoid stale red-button press from completing the timer module
+  extern unsigned long buttonComboSolvedTime;
+  if (buttonComboSolved && (millis() - buttonComboSolvedTime) < 400) {
+    digitalWrite(LED_PIN, LOW);
+    return false;
+  }
+
   // Only allow button press after all other non-bypassed modules are completed
   bool otherModulesComplete = true;
   if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) otherModulesComplete = false;
