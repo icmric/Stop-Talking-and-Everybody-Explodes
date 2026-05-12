@@ -84,11 +84,11 @@ enum GameState {
 // =====================================================
 // Set these to true to bypass modules for testing
 // This marks them as already solved without requiring actual completion
-const bool BYPASS_FREQUENCY_MODULE = false;
-const bool BYPASS_MAZE_MODULE = false;
-const bool BYPASS_CORE_MODULE = false;
+const bool BYPASS_FREQUENCY_MODULE = true;
+const bool BYPASS_MAZE_MODULE = true;
+const bool BYPASS_CORE_MODULE = true;
 const bool BYPASS_DISTANCE_MODULE = true; // DISABLED PERMINANTLY
-const bool BYPASS_BUTTON_COMBO_MODULE = false;
+const bool BYPASS_BUTTON_COMBO_MODULE = true;
 const bool BYPASS_TIMER_MODULE = false;
 const bool BYPASS_SIGNAL_ALIGNMENT = true; // DISABLED PERMINANTLY
 
@@ -126,6 +126,9 @@ const int LED_BAR_DATA = 12;
 
 // Keyed switch
 const int KEY_SWITCH_PIN = 31;
+
+// Ending sequence
+bool endSequencePlayed = false;
 
 Grove_LED_Bar ledBar(LED_BAR_CLK, LED_BAR_DATA, 0);
 Encoder encLeft(ENC_LEFT_A, ENC_LEFT_B);
@@ -506,53 +509,36 @@ void updateModuleCountDisplay() {
 }
 
 void displayBombDisarmed() {
-  // Clear the timer display and show "Bomb Disarmed" on the LCD
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("BOMB DISARMED");
-  
-  // Display module count on bottom right: "X/Y"
-  updateModuleCountDisplay();
-  
-  // Keep the timer display visible (don't blank it)
-  updateTimerDisplay();
+  stopBuzzer();
+  playDisarmedSequence();
 }
 
 void displayGameOverFailed() {
-  // Display game over message on LCD
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  
-  // Check if we failed due to timer or key off
-  if (timerFinished && remainingSeconds == 0) {
-    lcd.print("BOMB EXPLODED");
-  } else {
-    lcd.print("GAME FAILED");
-  }
-  
-  lcd.setCursor(0, 1);
-  lcd.print("KEY TURNED OFF");
-  
-  // Keep the timer display visible
-  updateTimerDisplay();
+  stopBuzzer();
+  bool timedOut = (timerFinished && remainingSeconds == 0);
+  playDetonatedSequence(timedOut); 
 }
 
 bool lastDisplayedGameState = -1;
 bool serialNumberDisplayed = false;
 
 void updateDisplayState() {
-  // Update display based on current game state
-  // Only update when state changes to avoid flickering
   if (currentGameState != lastDisplayedGameState) {
     if (currentGameState == STATE_IDLE) {
       displayIdleScreen();
     } else if (currentGameState == STATE_FAILED) {
-      displayGameOverFailed();
+      if (!endSequencePlayed) {
+        endSequencePlayed = true;
+        playDetonatedSequence(timerFinished && remainingSeconds == 0);
+      }
     } else if (currentGameState == STATE_DISARMED) {
-      displayBombDisarmed();
+      if (!endSequencePlayed) {
+        endSequencePlayed = true;
+        playDisarmedSequence();
+      }
     }
     lastDisplayedGameState = currentGameState;
-    serialNumberDisplayed = false;  // Reset flag when state changes
+    serialNumberDisplayed = false;
   }
   
   // Show serial number during normal gameplay (not while core event is active)
@@ -612,6 +598,7 @@ void handleKeySwitch() {
       buttonComboSolved = false;
       timerModuleSolved = false;
       signalAlignmentSolved = false;
+      endSequencePlayed = false;
     }
   } else {
     // Key is OFF
@@ -828,6 +815,166 @@ void updateTimerModule() {
   if (activate("1")) {
     // Correct button press while a 1 is visible.
   }
+}
+
+// =====================================================
+// MATRIX ROTATION HELPER
+// =====================================================
+// Rotates an 8-frame uint64_t pattern 90 degrees CCW.
+// Each uint64_t encodes one row: byte 7 = col 0, byte 0 = col 7.
+
+void rotateFrames90CCW(uint64_t* src, uint64_t* dst) {
+  uint8_t grid[8][8];
+  uint8_t rotated[8][8];
+
+  // Unpack src into grid[row][col]
+  for (int row = 0; row < 8; row++) {
+    for (int col = 0; col < 8; col++) {
+      grid[row][col] = (src[row] >> ((7 - col) * 8)) & 0xFF;
+    }
+  }
+
+  // 90° CCW: rotated[row][col] = grid[col][7 - row]
+  for (int row = 0; row < 8; row++) {
+    for (int col = 0; col < 8; col++) {
+      rotated[row][col] = grid[col][7 - row];
+    }
+  }
+
+  // Repack into dst
+  for (int row = 0; row < 8; row++) {
+    dst[row] = 0;
+    for (int col = 0; col < 8; col++) {
+      dst[row] |= ((uint64_t)rotated[row][col]) << ((7 - col) * 8);
+    }
+  }
+}
+
+// =====================================================
+// MATRIX GRAPHICS (original emoji pixel data)
+// =====================================================
+
+// Smile emoji (index 0) raw pixel data, copied from Grove library source
+uint64_t smileRaw[] = {
+  0xffff5e5e5e5effff,
+  0xff5effffffff5eff,
+  0x5eff5effff5eff5e,
+  0x5effffffffffff5e,
+  0x5eff5effff5eff5e,
+  0x5effff5e5effff5e,
+  0xff5effffffff5eff,
+  0xffff5e5e5e5effff
+};
+
+// Flame emoji (index 14) raw pixel data
+uint64_t flameRaw[] = {
+  0xffffff29ffffffff,
+  0xffff2929ffffffff,
+  0xff292929ff29ffff,
+  0xff292929292929ff,
+  0x2929292929292929,
+  0x2929292929292929,
+  0xff29292929292929,  // corrected from library
+  0xffff292929ffffff
+};
+
+// =====================================================
+// WIN / LOSE SEQUENCES
+// =====================================================
+
+// --- WIN: Disarmed sequence ---
+// Uses: LCD, LED bar, buzzer, 8x8 matrix
+// Total duration: ~3 seconds, then settles
+
+void playDisarmedSequence() {
+  // Step 1 (0ms): LCD message
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("** DISARMED **");
+  lcd.setCursor(0, 1);
+  // Show time remaining
+  int mins = remainingSeconds / 60;
+  int secs = remainingSeconds % 60;
+  lcd.print(mins);
+  lcd.print(":");
+  if (secs < 10) lcd.print("0");
+  lcd.print(secs);
+  lcd.print(" remaining");
+
+  // Step 2 (100ms): Fill LED bar left to right
+  delay(100);
+  for (int i = 1; i <= 10; i++) {
+    ledBar.setLevel(i);
+    delay(100);
+  }
+
+  // Step 3 (1.1s): Ascending fanfare
+  // C5, E5, G5, C6, E6
+  int fanfare[] = {523, 659, 784, 1047, 1319};
+  for (int i = 0; i < 5; i++) {
+    tone(BUZZER_PIN, fanfare[i], 120);
+    delay(160);
+  }
+  noTone(BUZZER_PIN);
+
+  // Matrix: display built-in "smile" emoji (index 0), once, for 2000ms
+uint64_t smileRotated[8];
+rotateFrames90CCW(smileRaw, smileRotated);
+matrix.stopDisplay();
+matrix.displayFrames(smileRotated, 2000, false, 1);  // duration, forever, frame_count
+delay(2000);
+
+  // Settle: final LCD state
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("BOMB DISARMED");
+  updateModuleCountDisplay();
+}
+
+// --- LOSE: Detonated sequence ---
+// Uses: Buzzer (wail + rumble), matrix (red flash), LED bar (all on then flicker)
+
+void playDetonatedSequence(bool timedOut) {
+  // Step 1 (0ms): Descending wail on buzzer
+  // Sweep from 2000Hz to 200Hz over ~350ms
+  for (int freq = 2000; freq >= 200; freq -= 90) {
+    tone(BUZZER_PIN, freq, 20);
+    delay(10);
+  }
+  noTone(BUZZER_PIN);
+
+    // Matrix: display built-in "flame" emoji (index 14), once, for 2500ms
+uint64_t flameRotated[8];
+rotateFrames90CCW(flameRaw, flameRotated);
+matrix.stopDisplay();
+matrix.displayFrames(flameRotated, 2500, false, 1);
+
+  // LED bar all on
+  ledBar.setLevel(10);
+  delay(600);
+
+  // Step 4 (1.27s): Low rumble — toggle two low frequencies
+  for (int i = 0; i < 15; i++) {
+    tone(BUZZER_PIN, (i % 2 == 0) ? 80 : 120, 40);
+    delay(40);
+  }
+  noTone(BUZZER_PIN);
+
+  // Step 5 (2.0s): LED bar and matrix flicker then go dark
+  for (int flicker = 0; flicker < 5; flicker++) {
+    ledBar.setLevel(10);
+    delay(60);
+    ledBar.setLevel(0);
+    delay(60);
+  }
+  matrix.stopDisplay();
+
+  // Settle: LCD failure message
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(timedOut ? "DETONATED" : "GAME FAILED");
+  lcd.setCursor(0, 1);
+  lcd.print(timedOut ? "TIMER EXPIRED" : "KEY TURNED OFF");
 }
 
 // =====================================================
