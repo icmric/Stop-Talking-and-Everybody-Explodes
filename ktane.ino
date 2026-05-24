@@ -6,23 +6,27 @@
   - Frequency scrambler with LED bar and two encoders
   - 8x8 RGB LED matrix maze using the same two encoders
   - TM1637 countdown timer with Grove LED Button
-  - Core overheating humidity/LCD module
+  - Core overheating microphone/LCD module
   - Distance control with ultrasonic sensor on D30
   - Signal alignment with HMC5883L compass (see signal_alignment.h)
 
   Pins
+  - Mic sensor (d6) - MH sound sensor OUT pin (detects blowing)
   - Enc left (d2-3)
   - Enc Right (d4-5)
-  - Buzzer (d6-7)
+  - Buzzer (d6)
+  - Microphone Switch (d7)
   - 4 digit (d8-9) *** DISP_DIO must move off D9 before enabling Mozzi audio ***
   - red LED button (d10-11)
   - LED bar (d12-13)
   - Ultrasonic (d30)
   - Compass HMC5883L (SDA/SCL, shared I2C bus)
 
-  Important pin note:
-  The original Encoder_Tuning.ino used DHT on D4, but D4/D5 are already used by the right encoder.udio
-  This combined version moves the DHT sensor to D7.
+  Microphone Setup Notes:
+  - MH-series sound sensor ("sound sensor blue") on digital pin 6
+  - GND and VCC wired to ground and 5V
+  - Potentiometer on module adjusts detection sensitivity - calibrate as needed
+  - Digital OUT pin triggers HIGH when sound above threshold is detected
 
   Mozzi note:
   Signal alignment uses Mozzi for audio, which requires D9 for output on Arduino Mega.
@@ -31,7 +35,6 @@
   Libraries required:
   - Grove LED Bar
   - Encoder by Paul Stoffregen
-  - DHT sensor library by Adafruit
   - rgb_lcd (Grove Serial RGB Backlight LCD)
   - TM1637
   - Grove two RGB LED Matrix
@@ -43,7 +46,6 @@
 #include <math.h>
 #include <Grove_LED_Bar.h>
 #include <Encoder.h>
-#include <DHT.h>
 #include <Ultrasonic.h>
 #include "rgb_lcd.h"
 #include "TM1637.h"
@@ -106,10 +108,6 @@ const int ENC_LEFT_B = 3;
 const int ENC_RIGHT_A = 4;
 const int ENC_RIGHT_B = 5;
 
-// Temp & humid sensor (on analog pins A2-A3, digital 56-57)
-const int DHT_PIN = A2;     // A2 = digital pin 56
-const int DHT_TYPE = DHT11;
-
 // Ultrasonic sensor (on analog pins A0-A1, digital 54-55)
 const int ULTRASONIC_PIN = A0;  // A0 = digital pin 54
 
@@ -134,7 +132,6 @@ bool endSequencePlayed = false;
 Grove_LED_Bar ledBar(LED_BAR_CLK, LED_BAR_DATA, 0);
 Encoder encLeft(ENC_LEFT_A, ENC_LEFT_B);
 Encoder encRight(ENC_RIGHT_A, ENC_RIGHT_B);
-DHT dht(DHT_PIN, DHT_TYPE);
 rgb_lcd lcd;
 TM1637 tm1637(DISP_CLK, DISP_DIO);
 GroveTwoRGBLedMatrixClass matrix;

@@ -1,10 +1,16 @@
 /*
   Core Overheating Module
   
-  Uses DHT humidity sensor and LCD display. NOTE: Soon to be updated to microphone
+  Uses MH sound sensor (microphone) and LCD display.
   This is a triggered event that activates after specified time.
-  Player must blow on the humidity sensor for 5 seconds to cool the core.
+  Player must blow on the microphone for 5 seconds to cool the core.
   While active, all other modules are paused.
+  
+  Microphone Setup:
+  - MH-series sound sensor ("sound sensor blue")
+  - OUT pin connected to DIGITAL pin 6
+  - GND and VCC connected to ground and 5V
+  - Potentiometer on module adjusts detection sensitivity threshold
   
   Synchronized Flashing:
   During the alert phase, simultaneously flashes:
@@ -17,7 +23,6 @@
 #ifndef CORE_MODULE_H
 #define CORE_MODULE_H
 
-#include <DHT.h>
 #include "rgb_lcd.h"
 
 // Forward declarations
@@ -28,30 +33,37 @@ extern TM1637 tm1637;
 // CORE OVERHEATING MODULE
 // =====================================================
 
-const float HUMIDITY_THRESHOLD = 90.0;
-const unsigned long BLOW_DURATION = 5000;
-const unsigned long FLASH_DURATION = 3000;  // Flash for 3 seconds
-const unsigned long FLASH_CYCLE = 500;      // 500ms per half-cycle (2Hz total)
+// Microphone sensor pin (digital input)
+const int MIC_SENSOR_PIN = 7;
+
+// Debounce settings for microphone detection
+// Allow up to 800ms of silence (enough for a normal breath) without losing progress
+const unsigned long MIC_BREATH_TIMEOUT = 800;  // Allows breathing breaks
+const unsigned long MIC_READ_INTERVAL = 100;   // Read sensor every 100ms
+const unsigned long BLOW_DURATION = 5000;      // Total continuous accumulation time needed
+const unsigned long FLASH_DURATION = 3000;     // Flash for 3 seconds
+const unsigned long FLASH_CYCLE = 500;         // 500ms per half-cycle (2Hz total)
 
 bool coreSolved = false;
 bool coreTriggered = false;  // Tracks if core event has been activated
-bool coreBlowing = false;
+bool coreBlowing = false;    // Currently detecting sound
 bool coreMessageShown = false;
 bool coreDisplayCleared = false;  // Track if we've cleared the "CORE STABLE" message
-unsigned long coreBlowStart = 0;
-unsigned long coreLastDHTRead = 0;
+unsigned long coreBlowStart = 0;  // When the accumulated blowing started (for cumulative time)
+unsigned long coreLastMicRead = 0;
+unsigned long micLastDetectionTime = 0;  // Track last time sound was detected
 unsigned long coreFlashStart = 0;
 unsigned long coreSolvedTime = 0;  // Track when core was solved
 bool coreFlashing = false;
+unsigned long coreAccumulatedBlowTime = 0;  // Cumulative blow time across breaths
 
 // Forward declarations - these objects are declared in main file
-extern DHT dht;
 extern rgb_lcd lcd;
 extern String bombSerialNumber;
 extern int currentDigits[4];  // Timer display digits
 
 void setupCoreModule() {
-  dht.begin();
+  pinMode(MIC_SENSOR_PIN, INPUT);  // Set microphone pin as digital input
   lcd.begin(16, 2);
   lcd.setRGB(255, 0, 0);  // Red backlight
   lcd.clear();
@@ -64,6 +76,7 @@ void triggerCoreEvent() {
     coreFlashing = true;
     coreFlashStart = millis();
     coreMessageShown = false;  // Reset message flag to show the message
+    coreAccumulatedBlowTime = 0;  // Reset accumulated blow time
     
     // Clear the maze display when core is triggered
     extern bool mazeSetupDone;
@@ -163,34 +176,53 @@ void updateCoreModule() {
     return;
   }
 
-  if (now - coreLastDHTRead >= 1200) {
-    coreLastDHTRead = now;
-    float humidity = dht.readHumidity();
+  // Check microphone sensor for blow detection with breath-tolerant debouncing
+  // Read once per 100ms to avoid noise
+  if (now - coreLastMicRead >= MIC_READ_INTERVAL) {
+    coreLastMicRead = now;
+    bool micDetected = digitalRead(MIC_SENSOR_PIN) == HIGH;
 
-    if (!isnan(humidity)) {
-      if (humidity >= HUMIDITY_THRESHOLD) {
-        if (!coreBlowing) {
-          coreBlowing = true;
-          coreBlowStart = now;
+    if (micDetected) {
+      // Microphone detected sound - update the last detection time
+      micLastDetectionTime = now;
+      
+      if (!coreBlowing) {
+        // Just started blowing - begin accumulation period
+        coreBlowing = true;
+        if (coreAccumulatedBlowTime == 0) {
+          coreBlowStart = now;  // Only set start time on very first blow
         }
-      } else {
-        coreBlowing = false;
-        if (coreMessageShown && !coreFlashing) {
-          lcd.setCursor(0, 1);
-          lcd.print("BLOW TO COOL    ");
+      }
+    } else {
+      // No sound detected - check if we should keep accumulating or reset
+      if (coreBlowing) {
+        // Check if silence has exceeded our breath timeout
+        if (now - micLastDetectionTime >= MIC_BREATH_TIMEOUT) {
+          // Silence too long - player stopped blowing, reset accumulation
+          coreBlowing = false;
+          coreAccumulatedBlowTime = 0;
+          if (coreMessageShown && !coreFlashing) {
+            lcd.setCursor(0, 1);
+            lcd.print("BLOW TO COOL    ");
+          }
         }
+        // Otherwise, stay in coreBlowing state during the breath (tolerating silence)
       }
     }
   }
 
   if (coreBlowing) {
-    int secondsLeft = (BLOW_DURATION - (now - coreBlowStart)) / 1000 + 1;
+    // Calculate time since start of this session (including all breaths)
+    unsigned long totalElapsedTime = now - coreBlowStart;
+    int secondsLeft = (BLOW_DURATION - totalElapsedTime) / 1000 + 1;
+    
     lcd.setCursor(0, 1);
     lcd.print("KEEP BLOWING: ");
     lcd.print(secondsLeft);
     lcd.print("s ");
 
-    if (now - coreBlowStart >= BLOW_DURATION) {
+    if (totalElapsedTime >= BLOW_DURATION) {
+      // Success! Core has been blown on for 5 seconds total (with breath breaks allowed)
       coreSolved = true;
       coreSolvedTime = now;  // Record when solved
       coreDisplayCleared = false;  // Reset flag
@@ -199,6 +231,7 @@ void updateCoreModule() {
       lcd.print("CORE STABLE");
       lcd.setRGB(0, 255, 0);  // Green backlight when solved
       ledBar.setLevel(0);      // LED bar off
+      coreAccumulatedBlowTime = 0;  // Reset for potential future attempts
     }
   }
 }
