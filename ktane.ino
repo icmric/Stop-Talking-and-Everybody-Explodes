@@ -84,11 +84,12 @@ enum GameState {
 // =====================================================
 // Set these to true to bypass modules for testing
 // This marks them as already solved without requiring actual completion
-const bool BYPASS_FREQUENCY_MODULE = true;
-const bool BYPASS_MAZE_MODULE = true;
-const bool BYPASS_CORE_MODULE = true;
+// (Set to true to bypass the module)
+const bool BYPASS_FREQUENCY_MODULE = false;
+const bool BYPASS_MAZE_MODULE = false;
+const bool BYPASS_CORE_MODULE = false;
 const bool BYPASS_DISTANCE_MODULE = true; // DISABLED PERMINANTLY
-const bool BYPASS_BUTTON_COMBO_MODULE = true;
+const bool BYPASS_BUTTON_COMBO_MODULE = false;
 const bool BYPASS_TIMER_MODULE = false;
 const bool BYPASS_SIGNAL_ALIGNMENT = true; // DISABLED PERMINANTLY
 
