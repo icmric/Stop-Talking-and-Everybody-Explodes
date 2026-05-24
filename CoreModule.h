@@ -1,9 +1,9 @@
 /*
   Core Overheating Module
   
-  Uses DHT humidity sensor and LCD display.
+  Uses DHT humidity sensor and LCD display. NOTE: Soon to be updated to microphone
   This is a triggered event that activates after specified time.
-  Player must blow on the humidity sensor for 10 seconds to cool the core.
+  Player must blow on the humidity sensor for 5 seconds to cool the core.
   While active, all other modules are paused.
   
   Synchronized Flashing:
@@ -29,7 +29,7 @@ extern TM1637 tm1637;
 // =====================================================
 
 const float HUMIDITY_THRESHOLD = 90.0;
-const unsigned long BLOW_DURATION = 10000;
+const unsigned long BLOW_DURATION = 5000;
 const unsigned long FLASH_DURATION = 3000;  // Flash for 3 seconds
 const unsigned long FLASH_CYCLE = 500;      // 500ms per half-cycle (2Hz total)
 
