@@ -20,7 +20,7 @@
 // Forward declarations
 extern void playSuccessTone();
 extern String bombSerialNumber;
-extern Grove_LED_Bar ledBar;
+extern void setLedLevel(int level);  // Generic LED bar control
 extern bool signalAlignmentModuleActive;  // Flag to indicate when signal alignment is running
 
 #include <Wire.h>
@@ -96,7 +96,7 @@ void updateSignalAlignmentLED(int heading, bool targetNorth) {
     ledLevel = map(deviation, 20, 170, 9, 1);
   }
   
-  ledBar.setLevel(ledLevel);
+  setLedLevel(ledLevel);
 }
 
 int headingToPitch(int h) {
@@ -195,7 +195,7 @@ void updateSignalAlignmentModule() {
 
       if (signalStage == 2) {
         signalAlignmentSolved = true;
-        ledBar.setLevel(0);  // Turn off LED bar when complete
+        setLedLevel(0);  // Turn off LED bar when complete
         Serial.println(F("SIGNAL LOCKED - MODULE COMPLETE"));
       } else {
         signalStage++;

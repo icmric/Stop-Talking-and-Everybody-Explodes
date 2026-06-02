@@ -22,7 +22,6 @@
 
 // Forward declarations
 extern const int BUZZER_PIN;
-extern const int LED_PIN;            // D10 - Red button LED from main file
 extern void playSuccessTone();
 extern void applyPenalty(const char* reason);
 extern bool frequencyModuleSolved;   // Module dependencies
@@ -33,8 +32,8 @@ extern bool coreSolved;
 // BUTTON COMBO MODULE
 // =====================================================
 
-const int RED_BUTTON_PIN = 11;        // Red button signal pin (D11) - shared with timer module
-const int GREEN_BUTTON_PIN = 33;      // Green button signal pin (D33)
+const int RED_BUTTON_PIN = 10;        // Red button signal pin (D10) - INPUT_PULLUP
+const int GREEN_BUTTON_PIN = 11;      // Green button signal pin (D11) - INPUT_PULLUP
 const unsigned long BUTTON_TIME_LIMIT = 5000;
 
 // Sequence derived from serial number (0=RED, 1=GREEN)

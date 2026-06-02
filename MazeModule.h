@@ -1,22 +1,39 @@
 /*
   Matrix Maze Module
   
-  Uses an 8x8 RGB LED matrix and two encoders for player movement.
+  Uses an 8x8 WS2812B addressable LED matrix and two encoders for player movement.
   Navigate from top-left to bottom-right to solve the module.
   
   Penalty: Hitting a wall = -3 seconds from timer
+  
+  LED Matrix:
+  - 64 addressable WS2812B LEDs (8x8 grid)
+  - Data pin: Digital 22
+  - Brightness limited to 15% to protect power supply
+  - Colors: Red (player), Blue (goal unsolved), Green (goal solved), White (walls), Black (empty)
 */
 
 #ifndef MAZE_MODULE_H
 #define MAZE_MODULE_H
 
 #include <Encoder.h>
-#include "grove_two_rgb_led_matrix.h"
+#include <Adafruit_NeoPixel.h>
 
 // Forward declare penalty function
 extern void applyPenalty(const char* reason);
 extern bool coreSolved;    // Check if core event is complete before setting up maze
 extern bool coreTriggered; // Check if core event has been triggered
+
+// =====================================================
+// NEOPIXEL COLOR DEFINITIONS
+// =====================================================
+// NeoPixel colors use 32-bit RGB format (0xRRGGBB)
+// Brightness is globally limited to 15% in main sketch
+const uint32_t COLOR_BLACK = 0x000000;
+const uint32_t COLOR_RED = 0xFF0000;
+const uint32_t COLOR_GREEN = 0x00FF00;
+const uint32_t COLOR_BLUE = 0x0000FF;
+const uint32_t COLOR_WHITE = 0xFFFFFF;
 
 // =====================================================
 // MATRIX MAZE MODULE
@@ -35,11 +52,11 @@ bool mazeSetupDone = false;  // Track if maze LED matrix has been initialized
 bool mazeDisplayCleared = false;  // Track if maze display has been cleared after solving
 unsigned long mazeSolvedTime = 0;  // Track when maze was solved (to delay clearing)
 const unsigned long MAZE_CLEAR_DELAY = 1500;  // Show solution for 1.5 seconds before clearing
-uint8_t frame[64];
 long mazeLastLeftPos = 0;
 long mazeLastRightPos = 0;
-unsigned long mazeLastMoveTime = 0;
-const unsigned long mazeMoveDelay = 120;
+unsigned long mazeLastLeftMoveTime = 0;  // Track time of last LEFT encoder move
+unsigned long mazeLastRightMoveTime = 0;  // Track time of last RIGHT encoder move
+const unsigned long mazeMoveDelay = 80;  // Delay between moves (ms) - per encoder
 
 bool wallRight[MAZE_H][MAZE_W];
 bool wallDown[MAZE_H][MAZE_W];
@@ -49,7 +66,7 @@ bool wallUp[MAZE_H][MAZE_W];
 // Forward declarations - these objects are declared in main file
 extern Encoder encLeft;
 extern Encoder encRight;
-extern GroveTwoRGBLedMatrixClass matrix;
+extern Adafruit_NeoPixel matrix;  // NeoPixel strip object
 
 void clearWalls() {
   for (int y = 0; y < MAZE_H; y++) {
@@ -201,40 +218,43 @@ void setupFirstMaze() {
 }
 
 void drawScene() {
+  // Clear all pixels to black
   for (int i = 0; i < 64; i++) {
-    frame[i] = black;
+    matrix.setPixelColor(i, COLOR_BLACK);
   }
 
+  // Draw border walls (white)
   for (int x = 0; x < 8; x++) {
-    frame[x] = white;
-    frame[7 * 8 + x] = white;
+    matrix.setPixelColor(x, COLOR_WHITE);                    // Top border
+    matrix.setPixelColor(7 * 8 + x, COLOR_WHITE);            // Bottom border
   }
 
   for (int y = 0; y < 8; y++) {
-    frame[y * 8] = white;
-    frame[y * 8 + 7] = white;
+    matrix.setPixelColor(y * 8, COLOR_WHITE);                // Left border
+    matrix.setPixelColor(y * 8 + 7, COLOR_WHITE);            // Right border
   }
 
-  int px = playerX + 1;
-  int py = playerY + 1;
+  // Draw goal (player position + 1 for border offset)
   int gx = goalX + 1;
   int gy = goalY + 1;
+  matrix.setPixelColor(gy * 8 + gx, mazeSolved ? COLOR_GREEN : COLOR_BLUE);
 
-  frame[gy * 8 + gx] = mazeSolved ? green : blue;
-
+  // Draw player (red) - only if not solved
   if (!mazeSolved) {
-    frame[py * 8 + px] = red;
+    int px = playerX + 1;
+    int py = playerY + 1;
+    matrix.setPixelColor(py * 8 + px, COLOR_RED);
   }
 
-  matrix.displayFrames(frame, 0, true, 1);
+  matrix.show();  // Update the display
 }
 
 void clearMazeDisplay() {
   // Clear all pixels to black
   for (int i = 0; i < 64; i++) {
-    frame[i] = black;
+    matrix.setPixelColor(i, COLOR_BLACK);
   }
-  matrix.displayFrames(frame, 0, true, 1);
+  matrix.show();  // Update the display
 }
 
 void checkMazeSolved() {
@@ -287,14 +307,14 @@ bool moveUp() {
 }
 
 void setupMazeModule() {
-  if (matrix.getDeviceVID() != 0x2886) {
-    Serial.println("Matrix not detected");
-    return;
-  }
-
+  // Initialize NeoPixel strip (already done in main setup, but ensure it's ready)
+  matrix.begin();
+  matrix.show();  // Initialize all pixels to off
+  
   mazeSolved = false;
-  mazeLastLeftPos = encLeft.read() / 4;
-  mazeLastRightPos = encRight.read() / 4;
+  // Initialize with RAW encoder values (no division) - same as updateMazeModule
+  mazeLastLeftPos = encLeft.read();
+  mazeLastRightPos = encRight.read();
   setupFirstMaze();
   randomizeMazeStartAndGoal();
   drawScene();
@@ -326,22 +346,29 @@ void updateMazeModule() {
   bool changed = false;
   unsigned long now = millis();
 
-  long currLeft = encLeft.read() / 4;
-  if (currLeft != mazeLastLeftPos && now - mazeLastMoveTime > mazeMoveDelay) {
-    if (currLeft > mazeLastLeftPos) {
+  // Work with RAW encoder values (no division) - same as FrequencyModule
+  long currLeft = encLeft.read();
+  long changeLeft = currLeft - mazeLastLeftPos;
+  
+  // Allow left encoder to move independently of right encoder
+  if (abs(changeLeft) >= 4 && now - mazeLastLeftMoveTime > mazeMoveDelay) {
+    if (changeLeft > 0) {
       changed = moveRight();
     } else {
       changed = moveLeft();
     }
     mazeLastLeftPos = currLeft;
     if (changed) {
-      mazeLastMoveTime = now;
+      mazeLastLeftMoveTime = now;
     }
   }
 
-  long currRight = encRight.read() / 4;
-  if (currRight != mazeLastRightPos && now - mazeLastMoveTime > mazeMoveDelay) {
-    if (currRight > mazeLastRightPos) {
+  long currRight = encRight.read();
+  long changeRight = currRight - mazeLastRightPos;
+  
+  // Allow right encoder to move independently of left encoder
+  if (abs(changeRight) >= 4 && now - mazeLastRightMoveTime > mazeMoveDelay) {
+    if (changeRight > 0) {
       changed = moveUp();
     } else {
       changed = moveDown();
@@ -349,7 +376,7 @@ void updateMazeModule() {
       
     mazeLastRightPos = currRight;
     if (changed) {
-      mazeLastMoveTime = now;
+      mazeLastRightMoveTime = now;
     }
   }
 

@@ -19,7 +19,7 @@
 #include "SerialNumberParser.h"
 
 // Forward declarations
-extern Grove_LED_Bar ledBar;
+//extern Grove_LED_Bar ledBar;
 extern void playSuccessTone();
 extern const int ULTRASONIC_PIN;
 extern bool frequencyModuleSolved;  // Check if frequency module is done with LED bar

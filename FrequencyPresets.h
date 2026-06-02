@@ -44,10 +44,11 @@ struct EncoderSequence {
 };
 
 // Preset 0: L+3CW, R-2CCW, L-2CCW (3 steps)
+// NOTE: Click values must be multiplied by 4 for raw encoder ticks
 const EncoderSequence PRESET_0 = {
   {'L', 'R', 'L', ' '},
   {1, -1, -1, 0},
-  {3, 2, 2, 0},
+  {12, 8, 8, 0},   // 3*4, 2*4, 2*4 = working with raw ticks
   3
 };
 
@@ -55,7 +56,7 @@ const EncoderSequence PRESET_0 = {
 const EncoderSequence PRESET_1 = {
   {'R', 'L', 'R', ' '},
   {1, -1, 1, 0},
-  {2, 3, 1, 0},
+  {8, 12, 4, 0},   // 2*4, 3*4, 1*4 = working with raw ticks
   3
 };
 
@@ -63,7 +64,7 @@ const EncoderSequence PRESET_1 = {
 const EncoderSequence PRESET_2 = {
   {'L', 'R', ' ', ' '},
   {1, -1, 0, 0},
-  {4, 1, 0, 0},
+  {16, 4, 0, 0},   // 4*4, 1*4 = working with raw ticks
   2
 };
 
@@ -71,7 +72,7 @@ const EncoderSequence PRESET_2 = {
 const EncoderSequence PRESET_3 = {
   {'R', 'L', 'R', 'L'},
   {1, -1, -1, 1},
-  {3, 2, 1, 2},
+  {12, 8, 4, 8},   // 3*4, 2*4, 1*4, 2*4 = working with raw ticks
   4
 };
 
@@ -79,7 +80,7 @@ const EncoderSequence PRESET_3 = {
 const EncoderSequence PRESET_4 = {
   {'L', 'R', 'L', ' '},
   {-1, 1, 1, 0},
-  {1, 4, 1, 0},
+  {4, 16, 4, 0},   // 1*4, 4*4, 1*4 = working with raw ticks
   3
 };
 

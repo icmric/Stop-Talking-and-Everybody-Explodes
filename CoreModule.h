@@ -1,7 +1,7 @@
 /*
   Core Overheating Module
   
-  Uses MH sound sensor (microphone) and LCD display.
+  Uses MH sound sensor (microphone) and generic I2C LCD display.
   This is a triggered event that activates after specified time.
   Player must blow on the microphone for 5 seconds to cool the core.
   While active, all other modules are paused.
@@ -12,9 +12,16 @@
   - GND and VCC connected to ground and 5V
   - Potentiometer on module adjusts detection sensitivity threshold
   
+  I2C LCD Setup:
+  - Generic 16x2 I2C LCD module
+  - SDA → Arduino SDA (pin 20 on Mega)
+  - SCL → Arduino SCL (pin 21 on Mega)
+  - Address: 0x27 (adjust if different)
+  - No RGB backlight support - uses simple on/off
+  
   Synchronized Flashing:
   During the alert phase, simultaneously flashes:
-  - LCD backlight (red)
+  - LCD backlight (on/off only - no RGB on generic I2C)
   - 4-digit timer display
   - LED bar
   - Frequency: ~2Hz (500ms on, 500ms off)
@@ -23,11 +30,13 @@
 #ifndef CORE_MODULE_H
 #define CORE_MODULE_H
 
-#include "rgb_lcd.h"
+#include <LiquidCrystal_I2C.h>
 
 // Forward declarations
-extern Grove_LED_Bar ledBar;
-extern TM1637 tm1637;
+extern DIYables_4Digit7Segment_TM1637 tm1637;
+
+// Forward declaration for generic LED bar control
+void setLedLevel(int level);
 
 // =====================================================
 // CORE OVERHEATING MODULE
@@ -58,14 +67,14 @@ bool coreFlashing = false;
 unsigned long coreAccumulatedBlowTime = 0;  // Cumulative blow time across breaths
 
 // Forward declarations - these objects are declared in main file
-extern rgb_lcd lcd;
+extern LiquidCrystal_I2C lcd;
 extern String bombSerialNumber;
 extern int currentDigits[4];  // Timer display digits
 
 void setupCoreModule() {
   pinMode(MIC_SENSOR_PIN, INPUT);  // Set microphone pin as digital input
-  lcd.begin(16, 2);
-  lcd.setRGB(255, 0, 0);  // Red backlight
+  lcd.init();                       // Initialize I2C LCD
+  lcd.backlight();                  // Turn on backlight
   lcd.clear();
 }
 
@@ -124,24 +133,20 @@ void updateCoreModule() {
       
       if (flashState) {
         // FLASH ON
-        lcd.setRGB(255, 0, 0);  // Red backlight on
-        ledBar.setLevel(10);    // LED bar full brightness
+        lcd.backlight();         // Turn backlight on (white only on generic I2C)
+        setLedLevel(10);         // LED bar full brightness
         
-        // 4-digit display shows current time
-        int8_t displayDigits[4];
-        displayDigits[0] = currentDigits[0];
-        displayDigits[1] = currentDigits[1];
-        displayDigits[2] = currentDigits[2];
-        displayDigits[3] = currentDigits[3];
-        tm1637.display(displayDigits);
+        // 4-digit display shows current time (construct number from digits)
+        // currentDigits[0] = tens of minutes, [1] = ones of minutes, [2] = tens of seconds, [3] = ones of seconds
+        int displayValue = (currentDigits[0] * 1000) + (currentDigits[1] * 100) + (currentDigits[2] * 10) + currentDigits[3];
+        tm1637.print(displayValue);
       } else {
         // FLASH OFF
-        lcd.setRGB(0, 0, 0);    // Backlight off
-        ledBar.setLevel(0);     // LED bar off
+        lcd.noBacklight();       // Backlight off
+        setLedLevel(0);          // LED bar off
         
-        // 4-digit display off (show blanks)
-        int8_t blank[4] = {-1, -1, -1, -1};
-        tm1637.display(blank);
+        // 4-digit display off (display empty/blank)
+        tm1637.print(0);  // Blank display
       }
       
       // Show the message once during flashing
@@ -156,8 +161,8 @@ void updateCoreModule() {
     } else {
       // Flashing phase complete
       coreFlashing = false;
-      lcd.setRGB(255, 0, 0);  // Keep red backlight after flashing
-      ledBar.setLevel(0);      // LED bar off
+      lcd.backlight();  // Keep backlight on after flashing
+      setLedLevel(0);   // LED bar off
     }
   }
 
@@ -229,8 +234,8 @@ void updateCoreModule() {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("CORE STABLE");
-      lcd.setRGB(0, 255, 0);  // Green backlight when solved
-      ledBar.setLevel(0);      // LED bar off
+      lcd.backlight();  // Keep backlight on (no RGB color change on generic I2C)
+      setLedLevel(0);   // LED bar off
       coreAccumulatedBlowTime = 0;  // Reset for potential future attempts
     }
   }

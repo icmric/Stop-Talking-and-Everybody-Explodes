@@ -1,59 +1,52 @@
 /*
-  Combined Bomb Modules Sketch
-
-  Modules included:
-  - Exponential buzzer countdown on D6
-  - Frequency scrambler with LED bar and two encoders
-  - 8x8 RGB LED matrix maze using the same two encoders
-  - TM1637 countdown timer with Grove LED Button
-  - Core overheating microphone/LCD module
-  - Distance control with ultrasonic sensor on D30
-  - Signal alignment with HMC5883L compass (see signal_alignment.h)
-
-  Pins
-  - Mic sensor (d6) - MH sound sensor OUT pin (detects blowing)
-  - Enc left (d2-3)
-  - Enc Right (d4-5)
-  - Buzzer (d6)
-  - Microphone Switch (d7)
-  - 4 digit (d8-9) *** DISP_DIO must move off D9 before enabling Mozzi audio ***
-  - red LED button (d10-11)
-  - LED bar (d12-13)
-  - Ultrasonic (d30)
-  - Compass HMC5883L (SDA/SCL, shared I2C bus)
-
-  Microphone Setup Notes:
-  - MH-series sound sensor ("sound sensor blue") on digital pin 6
-  - GND and VCC wired to ground and 5V
-  - Potentiometer on module adjusts detection sensitivity - calibrate as needed
-  - Digital OUT pin triggers HIGH when sound above threshold is detected
-
-  Mozzi note:
-  Signal alignment uses Mozzi for audio, which requires D9 for output on Arduino Mega.
-  startMozzi() and audioHook() are currently commented out until DISP_DIO is moved off D9.
-
-  Libraries required:
-  - Grove LED Bar
+  KTANE Bomb Game - Main Controller
+  
+  A collaborative bomb-defusal game for Arduino Mega 2560.
+  Players must solve multiple electronic puzzles under time pressure.
+  
+  ACTIVE MODULES:
+  - Frequency Scrambler: Encoder sequences (2 rotary encoders)
+  - Maze Navigator: LED matrix pathfinding (8x8 WS2812B display)
+  - Button Combo: Timed button sequences (Red/Green buttons)
+  - Core Overheating: Microphone-triggered event (random activation)
+  - Timer: 5-minute countdown with exponential beeping
+  
+  HARDWARE PINS:
+  
+  Input/Control:
+    D2-D3   - Left encoder (CLK/DT phases)
+    D4-D5   - Right encoder (CLK/DT phases)
+    D10     - Red button
+    D11     - Green button
+    D31     - Key switch (game on/off)
+    D7      - Microphone sensor (Core module)
+  
+  Output/Display:
+    D6      - Buzzer (game audio)
+    D8-D9   - 4-Digit display (TM1637 DIO/CLK)
+    D22     - 8x8 LED matrix (NeoPixel data)
+    D35,37,39,41,43,45,47,49,51,53 - LED bar (10 LEDs)
+  
+  Communication:
+    D20-D21 - I2C bus (LCD 16x2 display)
+  
+  LIBRARIES REQUIRED:
   - Encoder by Paul Stoffregen
-  - rgb_lcd (Grove Serial RGB Backlight LCD)
-  - TM1637
-  - Grove two RGB LED Matrix
-  - Ultrasonic
-  - Mozzi by Tim Barrass
+  - LiquidCrystal_I2C
+  - DIYables_4Digit7Segment_TM1637
+  - Adafruit_NeoPixel
 */
 
 #include <Wire.h>
 #include <math.h>
-#include <Grove_LED_Bar.h>
 #include <Encoder.h>
-#include <Ultrasonic.h>
-#include "rgb_lcd.h"
-#include "TM1637.h"
-#include "grove_two_rgb_led_matrix.h"
+#include <LiquidCrystal_I2C.h>
+#include <Adafruit_NeoPixel.h>
+#include <DIYables_4Digit7Segment_TM1637.h>
+
+// Utility modules
 #include "SerialNumberGenerator.h"
 #include "SerialNumberParser.h"
-#include "signalAlignment.h"
-#include "compassCalibration.h"
 
 // =====================================================
 // MODULE SELECTION
@@ -78,63 +71,66 @@ enum GameState {
 #include "FrequencyModule.h"
 #include "CoreModule.h"
 #include "MazeModule.h"
-#include "DistanceModule.h"
 #include "ButtonComboModule.h"
+
+// Game modules
+#include "signalAlignment.h"
 
 // =====================================================
 // DEBUG / TESTING - BYPASS FLAGS
 // =====================================================
 // Set these to true to bypass modules for testing
-// This marks them as already solved without requiring actual completion
-// (Set to true to bypass the module)
-const bool BYPASS_FREQUENCY_MODULE = false;
+const bool BYPASS_FREQUENCY_MODULE = true;
 const bool BYPASS_MAZE_MODULE = false;
-const bool BYPASS_CORE_MODULE = false;
-const bool BYPASS_DISTANCE_MODULE = true; // DISABLED PERMINANTLY
+const bool BYPASS_CORE_MODULE = true;
 const bool BYPASS_BUTTON_COMBO_MODULE = false;
 const bool BYPASS_TIMER_MODULE = false;
-const bool BYPASS_SIGNAL_ALIGNMENT = true; // DISABLED PERMINANTLY
+const bool BYPASS_SIGNAL_ALIGNMENT = true;
+
+// When true, auto-starts game on boot without requiring key turn
+const bool AUTO_START_GAME = true;
 
 // =====================================================
-// SHARED PIN MAP
+// SHARED PIN MAP - Arduino Mega
 // =====================================================
+// Core Control Pins
+const int BUZZER_PIN = 6;                // D6 - Game audio feedback
 
-// Buzzer
-const int BUZZER_PIN = 6;
+// Encoder Inputs (for Frequency/Maze modules)
+// IMPORTANT: Rotary encoders need BOTH CLK and DT phases connected!
+// Left encoder: CLK→D2, DT→D3, SW→GND (SW is optional pushbutton)
+// Right encoder: CLK→D4, DT→D5, SW→GND (SW is optional pushbutton)
+const int ENC_LEFT_A = 2;                // D2 - Left encoder CLK (Phase A)
+const int ENC_LEFT_B = 3;                // D3 - Left encoder DT (Phase B)
+const int ENC_RIGHT_A = 4;               // D4 - Right encoder CLK (Phase A)
+const int ENC_RIGHT_B = 5;               // D5 - Right encoder DT (Phase B)
 
-// Encoders
-const int ENC_LEFT_A = 2;
-const int ENC_LEFT_B = 3;
-const int ENC_RIGHT_A = 4;
-const int ENC_RIGHT_B = 5;
+// 4-Digit 7-Segment Display (DIYables TM1637)
+const int DISP_CLK = 9;                  // D9 - Display clock
+const int DISP_DIO = 8;                  // D8 - Display data
 
-// Ultrasonic sensor (on analog pins A0-A1, digital 54-55)
-const int ULTRASONIC_PIN = A0;  // A0 = digital pin 54
+// Key Switch (Game On/Off)
+const int KEY_SWITCH_PIN = 31;           // D31 - Ignition key switch
 
-// 4 digit display
-const int DISP_CLK = 8;
-const int DISP_DIO = 9;
+// 8x8 LED Matrix (WS2812B NeoPixel)
+const int NEOPIXEL_PIN = 22;             // D22 - NeoPixel data
+const int NUM_PIXELS = 64;               // 8x8 matrix = 64 pixels
+const int NEOPIXEL_BRIGHTNESS = 10;      // 10% brightness (25/255) to protect power supply and add buffer for other components
 
-// red LED button
-const int LED_PIN = 10;
-const int BUTTON_PIN = 11;
+// Generic LED Bar (10 individual LEDs on odd pins)
+const int LED_BAR_PINS[10] = {35, 37, 39, 41, 43, 45, 47, 49, 51, 53};
 
-// LED bar
-const int LED_BAR_CLK = 13;
-const int LED_BAR_DATA = 12;
-
-// Keyed switch
-const int KEY_SWITCH_PIN = 31;
+// I2C Bus (shared) - D20 (SDA), D21 (SCL) for LCD display
 
 // Ending sequence
 bool endSequencePlayed = false;
 
-Grove_LED_Bar ledBar(LED_BAR_CLK, LED_BAR_DATA, 0);
+// Generic LED bar control - no global object needed
 Encoder encLeft(ENC_LEFT_A, ENC_LEFT_B);
 Encoder encRight(ENC_RIGHT_A, ENC_RIGHT_B);
-rgb_lcd lcd;
-TM1637 tm1637(DISP_CLK, DISP_DIO);
-GroveTwoRGBLedMatrixClass matrix;
+LiquidCrystal_I2C lcd(0x27, 16, 2);  // I2C address 0x27, 16 columns, 2 rows
+DIYables_4Digit7Segment_TM1637 tm1637(DISP_CLK, DISP_DIO);
+Adafruit_NeoPixel matrix(NUM_PIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // =====================================================
 // GAME STATE & CONFIGURATION
@@ -157,7 +153,7 @@ const unsigned long keyDebounceDelay = 50;
 // SHARED GAME TIMER STATE
 // =====================================================
 
-const int START_MINUTES = 7;
+const int START_MINUTES = 5;
 const int START_SECONDS = 0;
 const int TIMER_TOTAL_SECONDS = START_MINUTES * 60 + START_SECONDS;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_TOTAL_SECONDS * 1000UL;
@@ -171,214 +167,10 @@ unsigned long timerLastTick = 0;
 // =====================================================
 // CORE MODULE RANDOMIZATION
 // =====================================================
-
-// Track previous module states to detect transitions
-bool lastFrequencyModuleSolved = false;
-bool lastMazeSolved = false;
-bool lastCoreModuleSolved = false;
-bool lastDistanceSolved = false;
-bool lastButtonComboSolved = false;
-bool lastTimerModuleSolved = false;
-bool lastSignalAlignmentSolved = false;
+// Module transition tracking lives inline in this sketch
 
 // =====================================================
-// MODULE START/COMPLETION TRACKING
-// =====================================================
-
-
-
-// Check if any module just completed and trigger core randomly (50% chance on completion)
-void checkModuleTransitionsAndTriggerCore() {
-  if (coreTriggered || coreSolved) {
-    // Core already triggered or solved, no need to check further
-    return;
-  }
-  
-  // Check if any module transitioned from unsolved to solved
-  bool frequencyJustCompleted = !lastFrequencyModuleSolved && frequencyModuleSolved;
-  bool mazeJustCompleted = !lastMazeSolved && mazeSolved;
-  bool distanceJustCompleted = !lastDistanceSolved && distanceSolved;
-  bool buttonComboJustCompleted = !lastButtonComboSolved && buttonComboSolved;
-  bool timerJustCompleted = !lastTimerModuleSolved && timerModuleSolved;
-  
-  if (frequencyJustCompleted || mazeJustCompleted || distanceJustCompleted || 
-      buttonComboJustCompleted || timerJustCompleted) {
-    // 50% chance to trigger core event immediately
-    if (random(100) < 50) {
-      triggerCoreEvent();
-    }
-  }
-  
-  // Update tracking variables
-  lastFrequencyModuleSolved = frequencyModuleSolved;
-  lastMazeSolved = mazeSolved;
-  lastDistanceSolved = distanceSolved;
-  lastButtonComboSolved = buttonComboSolved;
-  lastTimerModuleSolved = timerModuleSolved;
-}
-
-// =====================================================
-// BUZZER MODULE
-// =====================================================
-
-unsigned long buzzerLastBeepTime = 0;
-
-const unsigned long buzzerStartInterval = 5000;
-const unsigned long buzzerEndInterval = 90;
-const unsigned long buzzerBeepDuration = 80;
-
-const int buzzerStartFreq = 800;
-const int buzzerEndFreq = 2000;
-const float buzzerIntervalCurve = 3.5;
-const float buzzerPitchCurve = 2.8;
-
-void setupBuzzerModule() {
-  pinMode(BUZZER_PIN, OUTPUT);
-}
-
-float getTimerProgress() {
-  unsigned long now = millis();
-  long msSinceLastTick = (long)(now - timerLastTick);
-
-  if (msSinceLastTick < 0) {
-    msSinceLastTick = 0;
-  }
-
-  long remainingMillis = ((long)remainingSeconds * 1000L) - msSinceLastTick;
-
-  if (remainingMillis < 0) {
-    remainingMillis = 0;
-  }
-
-  if (remainingMillis > (long)TIMER_TOTAL_DURATION) {
-    remainingMillis = TIMER_TOTAL_DURATION;
-  }
-
-  float progress = 1.0 - ((float)remainingMillis / (float)TIMER_TOTAL_DURATION);
-
-  if (progress < 0.0) {
-    progress = 0.0;
-  }
-
-  if (progress > 1.0) {
-    progress = 1.0;
-  }
-
-  return progress;
-}
-
-// Emergency beeping pattern during Core overheating event
-void updateCoreEmergencyBeeping() {
-  if (!coreMessageShown || coreSolved) {
-    return;
-  }
-
-  unsigned long now = millis();
-  
-  // Emergency pattern: 3 rapid beeps (200ms each) followed by 400ms silence, repeating
-  // Total cycle: 1000ms (3x200ms beeps + 400ms silence)
-  unsigned long cycleTime = now % 1000;
-  
-  if (cycleTime < 200) {
-    // First beep
-    tone(BUZZER_PIN, 1500, 200);
-  } else if (cycleTime >= 250 && cycleTime < 450) {
-    // Second beep
-    tone(BUZZER_PIN, 1500, 200);
-  } else if (cycleTime >= 500 && cycleTime < 700) {
-    // Third beep
-    tone(BUZZER_PIN, 1500, 200);
-  } else {
-    // Silence period
-    noTone(BUZZER_PIN);
-  }
-}
-
-void updateBuzzerModule() {
-  // Core emergency beeping takes priority
-  if (coreMessageShown && !coreSolved) {
-    updateCoreEmergencyBeeping();
-    return;
-  }
-
-  if (!timerRunning || timerFinished || remainingSeconds <= 0) {
-    noTone(BUZZER_PIN);
-    return;
-  }
-
-  unsigned long now = millis();
-  
-  // Panic mode: rapid beeping from 15 seconds remaining
-  if (remainingSeconds <= 15) {
-    // Rapid beeping every 100ms with increasing frequency
-    unsigned long panicInterval = 100;  // 10 beeps per second
-    int panicFreq = 1000 + (15 - remainingSeconds) * 50;  // Frequency increases as time runs out
-    
-    if (now - buzzerLastBeepTime >= panicInterval) {
-      tone(BUZZER_PIN, panicFreq, 50);  // 50ms beep, 50ms silence
-      buzzerLastBeepTime = now;
-    }
-  } else {
-    // Normal mode: exponential beeping
-    float t = getTimerProgress();
-
-    float intervalProgress = pow(t, buzzerIntervalCurve);
-    float pitchProgress = pow(t, buzzerPitchCurve);
-
-    unsigned long currentInterval =
-      buzzerStartInterval - (unsigned long)((buzzerStartInterval - buzzerEndInterval) * intervalProgress);
-
-    int currentFreq =
-      buzzerStartFreq + (int)((buzzerEndFreq - buzzerStartFreq) * pitchProgress);
-
-    if (now - buzzerLastBeepTime >= currentInterval) {
-      tone(BUZZER_PIN, currentFreq, buzzerBeepDuration);
-      buzzerLastBeepTime = now;
-    }
-  }
-}
-
-void stopBuzzer() {
-  noTone(BUZZER_PIN);
-}
-
-void playSuccessTone() {
-  // Play a success fanfare: ascending tones
-  int fanfarePattern[] = {523, 659, 784, 1047, 784, 659, 523};
-  
-  for (int i = 0; i < 7; i++) {
-    tone(BUZZER_PIN, fanfarePattern[i], 150);
-    delay(200);
-  }
-  noTone(BUZZER_PIN);
-}
-
-// =====================================================
-// PENALTY SYSTEM
-// =====================================================
-
-void applyPenalty(const char* reason) {
-  // Play strike tone: 1kHz for 200ms
-  tone(BUZZER_PIN, 1000, 200);
-  
-  // Reduce timer by 3 seconds (3000ms)
-  if (remainingSeconds > 3) {
-    remainingSeconds -= 3;
-  } else {
-    // Game ends if timer would go negative
-    remainingSeconds = 0;
-    timerRunning = false;
-    timerFinished = true;
-    stopBuzzer();
-    // Game over will be handled by normal game flow
-  }
-  
-  // Update display immediately
-  updateTimerDisplay();
-}
-
-// =====================================================
-// TIMER BUTTON MODULE
+// TIMER STATE & COUNTDOWN
 // =====================================================
 
 bool lastButtonReading = HIGH;
@@ -387,29 +179,17 @@ unsigned long timerLastDebounceTime = 0;
 const unsigned long timerDebounceDelay = 30;
 
 int currentDigits[4] = {0, 2, 0, 0};
+int lastDisplayedGameState = -1;
+bool serialNumberDisplayed = false;
 
-// =====================================================
-// RED BUTTON INTERRUPT HANDLER
-// =====================================================
-
-volatile bool redButtonPressed = false;
-
-// Interrupt service routine for red button
-// Arduino Mega: D11 = INT4
-void handleRedButtonInterrupt() {
-  redButtonPressed = true;
-}
-
-void setupRedButtonInterrupt() {
-  // Set up hardware interrupt on D11 (INT4) for rising edge
-  // Arduino Mega pins with interrupts: D2(INT4), D3(INT5), D21(INT0), D20(INT1), D19(INT2), D18(INT3)
-  // Wait, let me correct: D11 might not be interrupt. Let me check which pin is which.
-  // Actually, D11 doesn't have interrupt on Mega. Let me use a different approach.
-  // We'll use polling instead, but with better debouncing
-  
-  // For now, we'll handle this in the main loop with polling
-  // This is more reliable anyway since we need to check if digit is visible
-}
+unsigned long buzzerLastBeepTime = 0;
+const unsigned long buzzerStartInterval = 5000;
+const unsigned long buzzerEndInterval = 90;
+const unsigned long buzzerBeepDuration = 80;
+const int buzzerStartFreq = 800;
+const int buzzerEndFreq = 2000;
+const float buzzerIntervalCurve = 3.5;
+const float buzzerPitchCurve = 2.8;
 
 // =====================================================
 // KEY SWITCH MODULE
@@ -439,7 +219,6 @@ bool allModulesSolved() {
     if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) solved = false;
     if (!BYPASS_MAZE_MODULE && !mazeSolved) solved = false;
     if (!BYPASS_CORE_MODULE && !coreSolved) solved = false;
-    if (!BYPASS_DISTANCE_MODULE && !distanceSolved) solved = false;
     if (!BYPASS_BUTTON_COMBO_MODULE && !buttonComboSolved) solved = false;
     if (!BYPASS_TIMER_MODULE && !timerModuleSolved) solved = false;
     if (!BYPASS_SIGNAL_ALIGNMENT && !signalAlignmentSolved) solved = false;
@@ -447,114 +226,72 @@ bool allModulesSolved() {
 }
 
 // =====================================================
-// MODULE COUNTING FUNCTIONS
+// MODULE TRANSITION TRACKING
 // =====================================================
 
-int getTotalModuleCount() {
-  int count = 0;
-  if (!BYPASS_FREQUENCY_MODULE) count++;
-  if (!BYPASS_MAZE_MODULE) count++;
-  if (!BYPASS_CORE_MODULE) count++;
-  if (!BYPASS_DISTANCE_MODULE) count++;
-  if (!BYPASS_BUTTON_COMBO_MODULE) count++;
-  if (!BYPASS_TIMER_MODULE) count++;
-  if (!BYPASS_SIGNAL_ALIGNMENT) count++;
-  return count;
-}
+bool lastFrequencyModuleSolved = false;
+bool lastMazeSolved = false;
+bool lastButtonComboSolved = false;
+bool lastTimerModuleSolved = false;
 
-int getSolvedModuleCount() {
-  int count = 0;
-  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) count++;
-  if (!BYPASS_MAZE_MODULE && mazeSolved) count++;
-  if (!BYPASS_CORE_MODULE && coreSolved) count++;
-  if (!BYPASS_DISTANCE_MODULE && distanceSolved) count++;
-  if (!BYPASS_BUTTON_COMBO_MODULE && buttonComboSolved) count++;
-  if (!BYPASS_TIMER_MODULE && timerModuleSolved) count++;
-  if (!BYPASS_SIGNAL_ALIGNMENT && signalAlignmentSolved) count++;
-  return count;
-}
-
-void displayInitialScreen() {
-  // Display "8888" on 7-segment display
-  int8_t displayDigits[4] = {8, 8, 8, 8};
-  tm1637.point(POINT_ON);
-  tm1637.display(displayDigits);
-}
-
-void displaySerialNumber() {
-  // Display serial number on LCD - this is the only display during normal gameplay
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("SN:");
-  lcd.print(bombSerialNumber);
-  
-  // Display module count on bottom right
-  updateModuleCountDisplay();
-}
-
-void updateModuleCountDisplay() {
-  // Update just the module count on line 1 without clearing the screen
-  int solvedCount = getSolvedModuleCount();
-  int totalCount = getTotalModuleCount();
-  
-  // Format the count string (e.g., "6/6")
-  String countStr = String(solvedCount) + "/" + String(totalCount);
-  
-  // Position on the right side of row 1 (assuming 16-char display, right-align the count)
-  int startCol = 16 - countStr.length();
-  lcd.setCursor(startCol, 1);
-  lcd.print(countStr);
-}
-
-void displayBombDisarmed() {
-  stopBuzzer();
-  playDisarmedSequence();
-}
-
-void displayGameOverFailed() {
-  stopBuzzer();
-  bool timedOut = (timerFinished && remainingSeconds == 0);
-  playDetonatedSequence(timedOut); 
-}
-
-bool lastDisplayedGameState = -1;
-bool serialNumberDisplayed = false;
-
-void updateDisplayState() {
-  if (currentGameState != lastDisplayedGameState) {
-    if (currentGameState == STATE_IDLE) {
-      displayIdleScreen();
-    } else if (currentGameState == STATE_FAILED) {
-      if (!endSequencePlayed) {
-        endSequencePlayed = true;
-        playDetonatedSequence(timerFinished && remainingSeconds == 0);
-      }
-    } else if (currentGameState == STATE_DISARMED) {
-      if (!endSequencePlayed) {
-        endSequencePlayed = true;
-        playDisarmedSequence();
-      }
-    }
-    lastDisplayedGameState = currentGameState;
-    serialNumberDisplayed = false;
+void checkModuleTransitionsAndTriggerCore() {
+  if (coreTriggered || coreSolved) {
+    return;
   }
-  
-  // Show serial number during normal gameplay (not while core event is active)
-  if (!serialNumberDisplayed && (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)) {
-    // Display serial number if core hasn't triggered yet, or if core event is complete
-    if (!coreTriggered || coreSolved) {
-      displaySerialNumber();
-      serialNumberDisplayed = true;
+
+  bool frequencyJustCompleted = !lastFrequencyModuleSolved && frequencyModuleSolved;
+  bool mazeJustCompleted = !lastMazeSolved && mazeSolved;
+  bool buttonComboJustCompleted = !lastButtonComboSolved && buttonComboSolved;
+  bool timerJustCompleted = !lastTimerModuleSolved && timerModuleSolved;
+
+  if (frequencyJustCompleted || mazeJustCompleted || buttonComboJustCompleted || timerJustCompleted) {
+    if (random(100) < 50) {
+      triggerCoreEvent();
     }
   }
-  
-  // Update module count during normal gameplay
-  if ((currentGameState == STATE_RUNNING || currentGameState == STATE_WON) && serialNumberDisplayed) {
-    if (!coreTriggered || coreSolved) {
-      updateModuleCountDisplay();
+
+  lastFrequencyModuleSolved = frequencyModuleSolved;
+  lastMazeSolved = mazeSolved;
+  lastButtonComboSolved = buttonComboSolved;
+  lastTimerModuleSolved = timerModuleSolved;
+}
+
+// =====================================================
+// GENERIC LED BAR CONTROL
+// =====================================================
+
+void initializeLedBar() {
+  for (int i = 0; i < 10; i++) {
+    pinMode(LED_BAR_PINS[i], OUTPUT);
+    digitalWrite(LED_BAR_PINS[i], LOW);
+  }
+}
+
+void setLedLevel(int level) {
+  level = constrain(level, 0, 10);
+
+  for (int i = 0; i < 10; i++) {
+    if (i < level) {
+      digitalWrite(LED_BAR_PINS[i], HIGH);
+    } else {
+      digitalWrite(LED_BAR_PINS[i], LOW);
     }
   }
 }
+
+void playLEDBootSequence() {
+  for (int level = 0; level <= 10; level++) {
+    setLedLevel(level);
+    delay(50);
+  }
+
+  for (int level = 10; level >= 0; level--) {
+    setLedLevel(level);
+    delay(50);
+  }
+}
+
+// Display and end sequence handling
 
 void handleKeySwitch() {
   if (!readKeySwitchDebounced()) {
@@ -578,21 +315,11 @@ void handleKeySwitch() {
       mazeSetupDone = false;
       mazeDisplayCleared = false;
       
-      // Reset module transition tracking to prevent false Core triggers
-      lastFrequencyModuleSolved = false;
-      lastMazeSolved = false;
-      lastCoreModuleSolved = false;
-      lastDistanceSolved = false;
-      lastButtonComboSolved = false;
-      lastTimerModuleSolved = false;
-      lastSignalAlignmentSolved = false;
-      
       // Reset actual module solved states for new game
       frequencyModuleSolved = false;
       mazeSolved = false;
       coreTriggered = false;
       coreSolved = false;
-      distanceSolved = false;
       buttonComboSolved = false;
       timerModuleSolved = false;
       signalAlignmentSolved = false;
@@ -604,6 +331,11 @@ void handleKeySwitch() {
       currentGameState = STATE_FAILED;
       timerRunning = false;
       stopBuzzer();
+      // Play detonated sequence once
+      if (!endSequencePlayed) {
+        playDetonatedSequence(timerFinished);
+        endSequencePlayed = true;
+      }
       // LCD display will be updated by updateDisplayState()
     } else if (currentGameState == STATE_WON) {
       // Force trigger core if it hasn't been triggered yet before allowing disarm
@@ -616,6 +348,11 @@ void handleKeySwitch() {
       currentGameState = STATE_DISARMED;
       timerRunning = false;
       stopBuzzer();
+      // Play disarmed sequence once
+      if (!endSequencePlayed) {
+        playDisarmedSequence();
+        endSequencePlayed = true;
+      }
       // LCD display will be updated by updateDisplayState()
     }
   }
@@ -643,31 +380,46 @@ void updateTimerDisplay() {
   currentDigits[2] = seconds / 10;
   currentDigits[3] = seconds % 10;
 
-  int8_t displayDigits[4];
-  displayDigits[0] = currentDigits[0];
-  displayDigits[1] = currentDigits[1];
-  displayDigits[2] = currentDigits[2];
-  displayDigits[3] = currentDigits[3];
-
-  tm1637.point(POINT_ON);
-  tm1637.display(displayDigits);
+  // Display MM:SS format using DIYables printTime API
+  // printTime takes: hours (displayed as tens digit), minutes (displayed as ones digit), colonOn
+  // We repurpose this to show MM:SS by passing minutes and seconds
+  tm1637.printTime(minutes, seconds, true);  // Displays as MM:SS with colon
 }
 
 void setupTimerModule() {
-  tm1637.init();
-  tm1637.set(BRIGHT_TYPICAL);
-  tm1637.point(POINT_ON);
+  // Initialize 4-digit 7-segment display (DIYables TM1637)
+  tm1637.begin();
 
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Use pullup for better debouncing
-  digitalWrite(LED_PIN, LOW);
-
-  setupRedButtonInterrupt();
-
-  // Display initial "8888" screen
+  // Display initial "88:88" screen
   displayInitialScreen();
   
   timerLastTick = millis();
+}
+
+int getTotalModuleCount() {
+  int count = 0;
+  if (!BYPASS_FREQUENCY_MODULE) count++;
+  if (!BYPASS_MAZE_MODULE) count++;
+  if (!BYPASS_CORE_MODULE) count++;
+  if (!BYPASS_BUTTON_COMBO_MODULE) count++;
+  if (!BYPASS_TIMER_MODULE) count++;
+  if (!BYPASS_SIGNAL_ALIGNMENT) count++;
+  return count;
+}
+
+int getSolvedModuleCount() {
+  int count = 0;
+  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) count++;
+  if (!BYPASS_MAZE_MODULE && mazeSolved) count++;
+  if (!BYPASS_CORE_MODULE && coreSolved) count++;
+  if (!BYPASS_BUTTON_COMBO_MODULE && buttonComboSolved) count++;
+  if (!BYPASS_TIMER_MODULE && timerModuleSolved) count++;
+  if (!BYPASS_SIGNAL_ALIGNMENT && signalAlignmentSolved) count++;
+  return count;
+}
+
+void displayInitialScreen() {
+  tm1637.printTime(88, 88, true);
 }
 
 void displayIdleScreen() {
@@ -713,28 +465,6 @@ void updateCountdown() {
   }
 }
 
-bool buttonJustPressed() {
-  bool reading = digitalRead(BUTTON_PIN);
-
-  if (reading != lastButtonReading) {
-    timerLastDebounceTime = millis();
-  }
-
-  if ((millis() - timerLastDebounceTime) > timerDebounceDelay) {
-    if (reading != debouncedButtonState) {
-      debouncedButtonState = reading;
-
-      if (debouncedButtonState == LOW) {
-        lastButtonReading = reading;
-        return true;
-      }
-    }
-  }
-
-  lastButtonReading = reading;
-  return false;
-}
-
 bool digitIsVisible(char targetDigit) {
   if (targetDigit < '0' || targetDigit > '9') {
     return false;
@@ -751,68 +481,170 @@ bool digitIsVisible(char targetDigit) {
   return false;
 }
 
-bool activate(const char* target) {
-  // Don't do anything if timer module is already solved
-  if (timerModuleSolved) {
-    digitalWrite(LED_PIN, LOW);
-    return false;
-  }
-
-  // Avoid stale red-button press from completing the timer module
-  extern unsigned long buttonComboSolvedTime;
-  if (buttonComboSolved && (millis() - buttonComboSolvedTime) < 400) {
-    digitalWrite(LED_PIN, LOW);
-    return false;
-  }
-
-  // Only allow button press after all other non-bypassed modules are completed
-  bool otherModulesComplete = true;
-  if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) otherModulesComplete = false;
-  if (!BYPASS_MAZE_MODULE && !mazeSolved) otherModulesComplete = false;
-  if (!BYPASS_CORE_MODULE && !coreSolved) otherModulesComplete = false;
-  if (!BYPASS_DISTANCE_MODULE && !distanceSolved) otherModulesComplete = false;
-  if (!BYPASS_BUTTON_COMBO_MODULE && !buttonComboSolved) otherModulesComplete = false;
-  if (!otherModulesComplete) {
-    digitalWrite(LED_PIN, LOW);
-    return false;
-  }
-
-  if (target == nullptr || target[0] == '\0' || target[1] != '\0') {
-    return false;
-  }
-
-  bool digitVisible = digitIsVisible(target[0]);
-  
-  // Update LED to show if target digit is visible
-  if (digitVisible) {
-    digitalWrite(LED_PIN, HIGH);
-  } else {
-    digitalWrite(LED_PIN, LOW);
-  }
-
-  if (!buttonJustPressed()) {
-    return false;
-  }
-
-  if (digitVisible) {
-    timerModuleSolved = true;  // Mark module as solved
-    digitalWrite(LED_PIN, LOW);  // Turn off LED
-    return true;
-  } else {
-    // Button pressed at wrong time - apply penalty
-    applyPenalty("TimerWrongTime");
-  }
-
-  digitalWrite(LED_PIN, LOW);
-  return false;
-}
-
 void updateTimerModule() {
   updateCountdown();
+}
 
-  if (activate("1")) {
-    // Correct button press while a 1 is visible.
+void updateModuleCountDisplay() {
+  int solvedCount = getSolvedModuleCount();
+  int totalCount = getTotalModuleCount();
+
+  String countStr = String(solvedCount) + "/" + String(totalCount);
+  int startCol = 16 - countStr.length();
+  lcd.setCursor(startCol, 1);
+  lcd.print(countStr);
+}
+
+void displaySerialNumber() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("SN:");
+  lcd.print(bombSerialNumber);
+
+  updateModuleCountDisplay();
+}
+
+void updateDisplayState() {
+  if (currentGameState != lastDisplayedGameState) {
+    if (currentGameState == STATE_IDLE) {
+      displayIdleScreen();
+    }
+    lastDisplayedGameState = currentGameState;
+    serialNumberDisplayed = false;
   }
+
+  if (!serialNumberDisplayed && (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)) {
+    if (!coreTriggered || coreSolved) {
+      displaySerialNumber();
+      serialNumberDisplayed = true;
+    }
+  }
+
+  if ((currentGameState == STATE_RUNNING || currentGameState == STATE_WON) && serialNumberDisplayed) {
+    if (!coreTriggered || coreSolved) {
+      updateModuleCountDisplay();
+    }
+  }
+}
+
+void setupBuzzerModule() {
+  pinMode(BUZZER_PIN, OUTPUT);
+}
+
+void stopBuzzer() {
+  noTone(BUZZER_PIN);
+}
+
+float getTimerProgress() {
+  unsigned long now = millis();
+  long msSinceLastTick = (long)(now - timerLastTick);
+
+  if (msSinceLastTick < 0) {
+    msSinceLastTick = 0;
+  }
+
+  long remainingMillis = ((long)remainingSeconds * 1000L) - msSinceLastTick;
+
+  if (remainingMillis < 0) {
+    remainingMillis = 0;
+  }
+
+  if (remainingMillis > (long)TIMER_TOTAL_DURATION) {
+    remainingMillis = TIMER_TOTAL_DURATION;
+  }
+
+  float progress = 1.0 - ((float)remainingMillis / (float)TIMER_TOTAL_DURATION);
+
+  if (progress < 0.0) {
+    progress = 0.0;
+  }
+
+  if (progress > 1.0) {
+    progress = 1.0;
+  }
+
+  return progress;
+}
+
+void updateCoreEmergencyBeeping() {
+  if (!coreMessageShown || coreSolved) {
+    return;
+  }
+
+  unsigned long now = millis();
+  unsigned long cycleTime = now % 1000;
+
+  if (cycleTime < 200) {
+    tone(BUZZER_PIN, 1500, 200);
+  } else if (cycleTime >= 250 && cycleTime < 450) {
+    tone(BUZZER_PIN, 1500, 200);
+  } else if (cycleTime >= 500 && cycleTime < 700) {
+    tone(BUZZER_PIN, 1500, 200);
+  } else {
+    noTone(BUZZER_PIN);
+  }
+}
+
+void updateBuzzerModule() {
+  if (coreMessageShown && !coreSolved) {
+    updateCoreEmergencyBeeping();
+    return;
+  }
+
+  if (!timerRunning || timerFinished || remainingSeconds <= 0) {
+    noTone(BUZZER_PIN);
+    return;
+  }
+
+  unsigned long now = millis();
+
+  if (remainingSeconds <= 15) {
+    unsigned long panicInterval = 100;
+    int panicFreq = 1000 + (15 - remainingSeconds) * 50;
+
+    if (now - buzzerLastBeepTime >= panicInterval) {
+      tone(BUZZER_PIN, panicFreq, 50);
+      buzzerLastBeepTime = now;
+    }
+  } else {
+    float t = getTimerProgress();
+    float intervalProgress = pow(t, buzzerIntervalCurve);
+    float pitchProgress = pow(t, buzzerPitchCurve);
+
+    unsigned long currentInterval =
+      buzzerStartInterval - (unsigned long)((buzzerStartInterval - buzzerEndInterval) * intervalProgress);
+
+    int currentFreq =
+      buzzerStartFreq + (int)((buzzerEndFreq - buzzerStartFreq) * pitchProgress);
+
+    if (now - buzzerLastBeepTime >= currentInterval) {
+      tone(BUZZER_PIN, currentFreq, buzzerBeepDuration);
+      buzzerLastBeepTime = now;
+    }
+  }
+}
+
+void applyPenalty(const char* reason) {
+  tone(BUZZER_PIN, 1000, 200);
+
+  if (remainingSeconds > 3) {
+    remainingSeconds -= 3;
+  } else {
+    remainingSeconds = 0;
+    timerRunning = false;
+    timerFinished = true;
+    stopBuzzer();
+  }
+}
+
+void playSuccessTone() {
+  int fanfarePattern[] = {523, 659, 784, 1047, 784, 659, 523};
+
+  for (int i = 0; i < 7; i++) {
+    tone(BUZZER_PIN, fanfarePattern[i], 150);
+    delay(200);
+  }
+  noTone(BUZZER_PIN);
 }
 
 // =====================================================
@@ -902,7 +734,7 @@ void playDisarmedSequence() {
   // Step 2 (100ms): Fill LED bar left to right
   delay(100);
   for (int i = 1; i <= 10; i++) {
-    ledBar.setLevel(i);
+    setLedLevel(i);
     delay(100);
   }
 
@@ -915,12 +747,19 @@ void playDisarmedSequence() {
   }
   noTone(BUZZER_PIN);
 
-  // Matrix: display built-in "smile" emoji (index 0), once, for 2000ms
-uint64_t smileRotated[8];
-rotateFrames90CCW(smileRaw, smileRotated);
-matrix.stopDisplay();
-matrix.displayFrames(smileRotated, 2000, false, 1);  // duration, forever, frame_count
-delay(2000);
+  // Matrix: display success pattern (simple animation)
+  // Clear matrix and show green for 2 seconds
+  for (int i = 0; i < 64; i++) {
+    matrix.setPixelColor(i, 0x00FF00);  // Green
+  }
+  matrix.show();
+  delay(2000);
+  
+  // Clear matrix
+  for (int i = 0; i < 64; i++) {
+    matrix.setPixelColor(i, 0x000000);  // Black
+  }
+  matrix.show();
 
   // Settle: final LCD state
   lcd.clear();
@@ -941,14 +780,21 @@ void playDetonatedSequence(bool timedOut) {
   }
   noTone(BUZZER_PIN);
 
-    // Matrix: display built-in "flame" emoji (index 14), once, for 2500ms
-uint64_t flameRotated[8];
-rotateFrames90CCW(flameRaw, flameRotated);
-matrix.stopDisplay();
-matrix.displayFrames(flameRotated, 2500, false, 1);
+  // Matrix: display failure pattern (red flashing for 2500ms)
+  for (int i = 0; i < 64; i++) {
+    matrix.setPixelColor(i, 0xFF0000);  // Red
+  }
+  matrix.show();
+  delay(2500);
+  
+  // Clear matrix
+  for (int i = 0; i < 64; i++) {
+    matrix.setPixelColor(i, 0x000000);  // Black
+  }
+  matrix.show();
 
   // LED bar all on
-  ledBar.setLevel(10);
+  setLedLevel(10);
   delay(600);
 
   // Step 4 (1.27s): Low rumble — toggle two low frequencies
@@ -960,12 +806,22 @@ matrix.displayFrames(flameRotated, 2500, false, 1);
 
   // Step 5 (2.0s): LED bar and matrix flicker then go dark
   for (int flicker = 0; flicker < 5; flicker++) {
-    ledBar.setLevel(10);
+    setLedLevel(10);
+    // Flash matrix red
+    for (int i = 0; i < 64; i++) {
+      matrix.setPixelColor(i, 0xFF0000);  // Red
+    }
+    matrix.show();
     delay(60);
-    ledBar.setLevel(0);
+    
+    setLedLevel(0);
+    // Matrix off
+    for (int i = 0; i < 64; i++) {
+      matrix.setPixelColor(i, 0x000000);  // Black
+    }
+    matrix.show();
     delay(60);
   }
-  matrix.stopDisplay();
 
   // Settle: LCD failure message
   lcd.clear();
@@ -984,6 +840,18 @@ void setup() {
   Wire.begin();
   delay(1000);
 
+  // Initialize 8x8 NeoPixel matrix
+  matrix.begin();
+  matrix.setBrightness(NEOPIXEL_BRIGHTNESS);  // Limit to 10% brightness (25/255) - protects power supply with buffer for other components
+  matrix.show();  // Initialize all pixels to off
+  
+  // Initialize I2C LCD
+  lcd.init();
+  lcd.backlight();
+
+  // Initialize generic LED bar (all pins as outputs, start off)
+  initializeLedBar();
+
   // Seed random number generator for truly random serial numbers
   seedRandomNumberGenerator();
 
@@ -995,14 +863,25 @@ void setup() {
   keyCurrentState = digitalRead(KEY_SWITCH_PIN);
   keyLastState = keyCurrentState;
 
+  // Initialize encoder pins with internal pull-ups (required for generic encoders)
+  // CRITICAL: Both CLK and DT phases must be connected for the Encoder library to work!
+  // Left encoder: CLK→D2, DT→D3
+  // Right encoder: CLK→D4, DT→D5
+  // The Encoder library uses these pins for interrupt detection
+  pinMode(ENC_LEFT_A, INPUT_PULLUP);    // D2 - Left encoder CLK
+  pinMode(ENC_LEFT_B, INPUT_PULLUP);    // D3 - Left encoder DT
+  pinMode(ENC_RIGHT_A, INPUT_PULLUP);   // D4
+  pinMode(ENC_RIGHT_B, INPUT_PULLUP);   // D5
+  
+  // Give the encoder pins a moment to stabilize after pull-up initialization
+  delay(50);
+
   setupBuzzerModule();
   setupFrequencyModule();
   setupCoreModule();
-  setupDistanceModule();
   setupButtonComboModule();
   setupTimerModule();
   clearMazeDisplay();
-  //runCompassCalibration();
 
   // Maze module setup is deferred until after core event to save power
   // (will be called in updateMazeModule when conditions are met)
@@ -1012,6 +891,8 @@ void setup() {
   // =====================================================
   if (BYPASS_FREQUENCY_MODULE) {
     frequencyModuleSolved = true;
+    // Switch to maze module when frequency is bypassed
+    activeEncoderModule = MAZE_MODULE;
     Serial.println("DEBUG: Frequency module bypassed");
   }
   if (BYPASS_MAZE_MODULE) {
@@ -1024,9 +905,14 @@ void setup() {
     coreTriggered = true;
     Serial.println("DEBUG: Core module bypassed");
   }
-  if (BYPASS_DISTANCE_MODULE) {
-    distanceSolved = true;
-    Serial.println("DEBUG: Distance module bypassed");
+  
+  // If both frequency AND core are bypassed, setup maze immediately
+  if (BYPASS_FREQUENCY_MODULE && BYPASS_CORE_MODULE && !BYPASS_MAZE_MODULE) {
+    extern void setupMazeModule();
+    setupMazeModule();
+    extern bool mazeSetupDone;
+    mazeSetupDone = true;
+    Serial.println("DEBUG: Maze module initialized (both frequency and core bypassed)");
   }
   if (BYPASS_BUTTON_COMBO_MODULE) {
     buttonComboSolved = true;
@@ -1039,6 +925,17 @@ void setup() {
   if (BYPASS_SIGNAL_ALIGNMENT) {
     signalAlignmentSolved = true;
     Serial.println("DEBUG: Signal alignment module bypassed");
+  }
+
+  // Auto-start game if flag is set (useful when testing without key switch connected)
+  if (AUTO_START_GAME) {
+    currentGameState = STATE_RUNNING;
+    timerRunning = true;
+    timerFinished = false;
+    timerLastTick = millis();
+    remainingSeconds = TIMER_TOTAL_SECONDS;
+    updateTimerDisplay();
+    Serial.println("DEBUG: Auto-starting game (AUTO_START_GAME = true)");
   }
 
   lcd.print("Starting!");
@@ -1074,18 +971,13 @@ void loop() {
     
     // Pause all other modules while core event is active/flashing
     if (!coreTriggered || coreSolved) {
-      // Disable distance module until after maze is complete to prevent ultrasonic interference
-      if (mazeSolved && !BYPASS_DISTANCE_MODULE) {
-        updateDistanceModule();
-      }
-
       if (activeEncoderModule == FREQUENCY_MODULE) {
         updateFrequencyModule();
       } else if (activeEncoderModule == MAZE_MODULE) {
         updateMazeModule();
       }
       // Signal alignment disabled for testing
-      // if (frequencyModuleSolved && mazeSolved && coreSolved && distanceSolved && buttonComboSolved) {
+      // if (frequencyModuleSolved && mazeSolved && coreSolved && buttonComboSolved) {
       //   static bool signalSetupDone = false;
       //   if (!signalSetupDone) {
       //     setupSignalAlignmentModule();

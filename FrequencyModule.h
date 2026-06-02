@@ -17,7 +17,6 @@
 #define FREQUENCY_MODULE_H
 
 #include <Encoder.h>
-#include <Grove_LED_Bar.h>
 #include "FrequencyPresets.h"
 #include "SerialNumberParser.h"
 
@@ -29,7 +28,7 @@ extern void triggerCoreEvent();
 extern void applyPenalty(const char* reason);
 
 // Forward declarations
-extern Grove_LED_Bar ledBar;
+extern void setLedLevel(int level);  // Generic LED bar control
 extern Encoder encLeft;
 extern Encoder encRight;
 
@@ -48,8 +47,14 @@ unsigned long freqLastClickTime = 0;
 bool frequencyModuleSolved = false;
 const unsigned long FREQ_CONFIRM_TIME = 500;
 
+// Encoder position tracking - work with RAW values
+// Each full encoder click = 4 raw ticks from the Encoder library
+const int ENCODER_CLICKS_PER_DETENT = 4;
+
+// Debouncing: ignore movements smaller than this (protects against contact bounce)
+const int ENCODER_DEBOUNCE_THRESHOLD = 3;  // Ignore changes < 3 ticks
+
 void setupFrequencyModule() {
-  ledBar.begin();
   freqStep = 0;
   freqClicks = 0;
   frequencyModuleSolved = false;
@@ -58,10 +63,11 @@ void setupFrequencyModule() {
   int digitSum = getDigitSum();
   frequencySequence = getFrequencySequence(digitSum);
   
-  freqLastLeftRead = encLeft.read() / 4;
-  freqLastRightRead = encRight.read() / 4;
+  // Store RAW encoder position
+  freqLastLeftRead = encLeft.read();
+  freqLastRightRead = encRight.read();
   
-  ledBar.setLevel(10);
+  setLedLevel(10);
 }
 
 void updateFrequencyModule() {
@@ -69,9 +75,9 @@ void updateFrequencyModule() {
     return;
   }
   
-  // Always read both encoders
-  long leftNow = encLeft.read() / 4;
-  long rightNow = encRight.read() / 4;
+  // Always read both encoders - work with RAW values
+  long leftRaw = encLeft.read();
+  long rightRaw = encRight.read();
   
   // Get current step requirements
   char needEncoder = frequencySequence->encoder[freqStep];
@@ -80,65 +86,68 @@ void updateFrequencyModule() {
   
   // Process only the encoder we need
   if (needEncoder == 'L') {
-    long change = leftNow - freqLastLeftRead;
+    long change = leftRaw - freqLastLeftRead;
     
-    if (change != 0) {
+    // Only process changes larger than debounce threshold (ignore contact bounce)
+    if (abs(change) >= ENCODER_DEBOUNCE_THRESHOLD) {
       int dir = (change > 0) ? 1 : -1;
-    freqLastLeftRead = leftNow;
+      freqLastLeftRead = leftRaw;
       
       if (dir == needDirection) {
-        // Correct direction
+        // Correct direction - count the RAW ticks
         freqClicks += abs(change);
-      freqLastClickTime = millis();
-    } else {
+        freqLastClickTime = millis();
+      } else {
         // Wrong direction on left encoder - PENALTY
         applyPenalty("FreqWrongDirection");
         freqClicks = 0;
         // Reset baselines
-        freqLastLeftRead = encLeft.read() / 4;
-        freqLastRightRead = encRight.read() / 4;
+        freqLastLeftRead = encLeft.read();
+        freqLastRightRead = encRight.read();
       }
     }
 
     // Penalize wrong encoder input without affecting correct input logic
-    long wrongChange = rightNow - freqLastRightRead;
-    if (wrongChange != 0) {
+    long wrongChange = rightRaw - freqLastRightRead;
+    if (abs(wrongChange) >= ENCODER_DEBOUNCE_THRESHOLD) {
       for (int i = 0; i < abs(wrongChange); i++) {
         applyPenalty("FreqWrongEncoder");
       }
-      freqLastRightRead = rightNow;
+      freqLastRightRead = rightRaw;
     }
   }
   else if (needEncoder == 'R') {
-    long change = rightNow - freqLastRightRead;
+    long change = rightRaw - freqLastRightRead;
 
-    if (change != 0) {
+    // Only process changes larger than debounce threshold (ignore contact bounce)
+    if (abs(change) >= ENCODER_DEBOUNCE_THRESHOLD) {
       int dir = (change > 0) ? 1 : -1;
-    freqLastRightRead = rightNow;
+      freqLastRightRead = rightRaw;
       
       if (dir == needDirection) {
-        // Correct direction
+        // Correct direction - count the RAW ticks
         freqClicks += abs(change);
-      freqLastClickTime = millis();
-    } else {
+        freqLastClickTime = millis();
+      } else {
         // Wrong direction on right encoder - PENALTY
         applyPenalty("FreqWrongDirection");
         freqClicks = 0;
         // Reset baselines
-        freqLastLeftRead = encLeft.read() / 4;
-        freqLastRightRead = encRight.read() / 4;
+        freqLastLeftRead = encLeft.read();
+        freqLastRightRead = encRight.read();
       }
     }
 
     // Penalize wrong encoder input without affecting correct input logic
-    long wrongChange = leftNow - freqLastLeftRead;
-    if (wrongChange != 0) {
+    long wrongChange = leftRaw - freqLastLeftRead;
+    if (abs(wrongChange) >= ENCODER_DEBOUNCE_THRESHOLD) {
       for (int i = 0; i < abs(wrongChange); i++) {
         applyPenalty("FreqWrongEncoder");
       }
-      freqLastLeftRead = leftNow;
+      freqLastLeftRead = leftRaw;
     }
   }
+
   else if (needEncoder != ' ') {
     // Invalid encoder character in sequence - shouldn't happen
     frequencyModuleSolved = false;
@@ -150,29 +159,27 @@ void updateFrequencyModule() {
     freqStep++;
     freqClicks = 0;
     
-    // Capture fresh baseline for next step
-    freqLastLeftRead = encLeft.read() / 4;
-    freqLastRightRead = encRight.read() / 4;
+    // Capture fresh baseline for next step (work with RAW values)
+    freqLastLeftRead = encLeft.read();
+    freqLastRightRead = encRight.read();
     
     // Update display - map current step to LED bar level
-    // If this is the last step, map(freqStep, 0, stepCount, 10, 1) would be 1
-    // If this is the first step, map(freqStep, 0, stepCount, 10, 1) would be closer to 10
     int level = map(freqStep, 0, frequencySequence->stepCount, 10, 1);
     if (level < 1) level = 1;
     if (level > 10) level = 10;
-    ledBar.setLevel(level);
+    setLedLevel(level);
     
     if (freqStep >= frequencySequence->stepCount) {
       frequencyModuleSolved = true;
       
       // Flash LED bar to indicate completion
       for (int i = 0; i < 4; i++) {
-        ledBar.setLevel(10);
+        setLedLevel(10);
         delay(150);
-        ledBar.setLevel(0);
+        setLedLevel(0);
         delay(150);
       }
-      ledBar.setLevel(10);
+      setLedLevel(10);
       
       // Setup maze and trigger core
       activeEncoderModule = (ActiveEncoderModule)1;
