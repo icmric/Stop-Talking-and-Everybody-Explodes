@@ -1,129 +1,98 @@
-/*
-  Button Combo Module
-  
-  Player must press buttons in a sequence derived from the serial number.
-  Sequence: Based on the 4 digits - if digit is EVEN press RED, if ODD press GREEN.
-  Always 4 button presses total (one for each digit).
-  Wrong button press triggers -3 second penalty.
-  
-  Serial Format: ABCD-1234
-  Example: ABC1-2468
-  - Digit 1 (2 - EVEN) → RED
-  - Digit 2 (4 - EVEN) → RED  
-  - Digit 3 (6 - EVEN) → RED
-  - Digit 4 (8 - EVEN) → RED
-  Sequence: RED → RED → RED → RED
-*/
-
 #ifndef BUTTON_COMBO_MODULE_H
 #define BUTTON_COMBO_MODULE_H
 
-#include "SerialNumberParser.h"
+/*
+  ButtonComboModule.h
+  Player must press RED/GREEN buttons in a 4-step sequence derived from the
+  serial number's digits: even digit → RED (0), odd digit → GREEN (1).
 
-// Forward declarations
-extern const int BUZZER_PIN;
-extern void playSuccessTone();
+  Example: serial "ABCD-2468" → digits 2,4,6,8 (all even) → RED RED RED RED
+
+  Penalty: wrong button press = -3s and sequence resets.
+  The module can be attempted at any time.
+
+  Hardware:
+    - Red button:   D10 (INPUT_PULLUP, active LOW)
+    - Green button: D11 (INPUT_PULLUP, active LOW)
+*/
+
+#include "SerialNumber.h"
+
 extern void applyPenalty(const char* reason);
-extern bool frequencyModuleSolved;   // Module dependencies
-extern bool mazeSolved;
-extern bool coreSolved;
 
-// =====================================================
-// BUTTON COMBO MODULE
-// =====================================================
+// ── Pins ───────────────────────────────────────────────────────────────────
 
-const int RED_BUTTON_PIN = 10;        // Red button signal pin (D10) - INPUT_PULLUP
-const int GREEN_BUTTON_PIN = 11;      // Green button signal pin (D11) - INPUT_PULLUP
-const unsigned long BUTTON_TIME_LIMIT = 5000;
+const int RED_BUTTON_PIN   = 10;
+const int GREEN_BUTTON_PIN = 11;
 
-// Sequence derived from serial number (0=RED, 1=GREEN)
-int buttonSequence[4];           // Will be filled with 0s and 1s
-int sequenceLength = 4;          // Always 4 presses (one per digit)
-int buttonStepIndex = 0;
-unsigned long buttonStartTime = 0;
-bool buttonStarted = false;
+// ── State ──────────────────────────────────────────────────────────────────
+
+// 0 = RED, 1 = GREEN
+int buttonSequence[4];
+int buttonStepIndex    = 0;
 bool buttonComboSolved = false;
-bool buttonComboActive = false;
-unsigned long buttonComboSolvedTime = 0;
+
+unsigned long buttonStartTime = 0;
+const unsigned long BUTTON_TIME_LIMIT = 5000;  // Reset sequence if no press within 5s
+
+// ── Setup ──────────────────────────────────────────────────────────────────
 
 void setupButtonComboModule() {
-  pinMode(RED_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(RED_BUTTON_PIN,   INPUT_PULLUP);
   pinMode(GREEN_BUTTON_PIN, INPUT_PULLUP);
-  
-  // Generate sequence from serial number
+
   for (int i = 0; i < 4; i++) {
-    int digit = getSerialDigit(i + 1);  // Digit 1-4
+    int digit = getSerialDigit(i + 1);
     if (digit < 0) digit = 0;
-    
-    // EVEN = RED (0), ODD = GREEN (1)
-    buttonSequence[i] = (digit % 2);
+    buttonSequence[i] = digit % 2;  // Even → 0 (RED), odd → 1 (GREEN)
   }
 }
+
+// ── Input handler ──────────────────────────────────────────────────────────
 
 void handleButtonPress(int button) {
-  // Check if this is the correct button
   if (button == buttonSequence[buttonStepIndex]) {
-    // Correct button - no beep for correct presses
     buttonStepIndex++;
-    
-    if (buttonStepIndex >= sequenceLength) {
-      buttonComboSolved = true;
-      buttonComboSolvedTime = millis();
-    }
+    if (buttonStepIndex >= 4) buttonComboSolved = true;
   } else {
-    // Wrong button - PENALTY
     applyPenalty("ButtonComboWrong");
-    
-    // Reset sequence
     buttonStepIndex = 0;
-    buttonStartTime = millis();  // Reset timer
+    buttonStartTime = millis();
   }
 }
 
+// ── Update ─────────────────────────────────────────────────────────────────
+
 void updateButtonComboModule() {
-  if (buttonComboSolved) {
-    return;
-  }
-  
-  // Button combo module can be completed at any time
-  // No dependencies - player can attempt this module anytime
-  
-  if (!buttonStarted) {
-    buttonStartTime = millis();
-    buttonStarted = true;
-    buttonComboActive = true;  // Module is now active
-  }
+  if (buttonComboSolved) return;
 
-  // Check time limit
-  if (millis() - buttonStartTime > BUTTON_TIME_LIMIT) {
-    buttonStepIndex = 0;
-    buttonStartTime = millis();
-  }
-
-  // Check button states with proper edge detection (detect LOW transition only)
-  static int lastRedState = HIGH;
-  static int lastGreenState = HIGH;
-  static unsigned long lastRedPress = 0;
-  static unsigned long lastGreenPress = 0;
-  const unsigned long debounceDelay = 50;  // Shorter debounce for edge detection
-  
   unsigned long now = millis();
-  
+
+  if (buttonStartTime == 0) buttonStartTime = millis();
+
+  // Reset sequence if player takes too long between presses
+  if (now - buttonStartTime > BUTTON_TIME_LIMIT) {
+    buttonStepIndex = 0;
+    buttonStartTime = now;
+  }
+
+  static int  lastRedState   = HIGH;
+  static int  lastGreenState = HIGH;
+  static unsigned long lastRedPress   = 0;
+  static unsigned long lastGreenPress = 0;
+  const unsigned long debounce = 50;
+
   int redState = digitalRead(RED_BUTTON_PIN);
-  if (redState == LOW && lastRedState == HIGH) {  // Detect HIGH to LOW transition
-    if (now - lastRedPress > debounceDelay) {
-      handleButtonPress(0);  // RED
-      lastRedPress = now;
-    }
+  if (redState == LOW && lastRedState == HIGH && now - lastRedPress > debounce) {
+    handleButtonPress(0);
+    lastRedPress = now;
   }
   lastRedState = redState;
-  
+
   int greenState = digitalRead(GREEN_BUTTON_PIN);
-  if (greenState == LOW && lastGreenState == HIGH) {  // Detect HIGH to LOW transition
-    if (now - lastGreenPress > debounceDelay) {
-      handleButtonPress(1);  // GREEN
-      lastGreenPress = now;
-    }
+  if (greenState == LOW && lastGreenState == HIGH && now - lastGreenPress > debounce) {
+    handleButtonPress(1);
+    lastGreenPress = now;
   }
   lastGreenState = greenState;
 }

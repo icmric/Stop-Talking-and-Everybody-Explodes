@@ -1,320 +1,210 @@
-/*
-  Matrix Maze Module
-  
-  Uses an 8x8 WS2812B addressable LED matrix and two encoders for player movement.
-  Navigate from top-left to bottom-right to solve the module.
-  
-  Penalty: Hitting a wall = -3 seconds from timer
-  
-  LED Matrix:
-  - 64 addressable WS2812B LEDs (8x8 grid)
-  - Data pin: Digital 22
-  - Brightness limited to 15% to protect power supply
-  - Colors: Red (player), Blue (goal unsolved), Green (goal solved), White (walls), Black (empty)
-*/
-
 #ifndef MAZE_MODULE_H
 #define MAZE_MODULE_H
+
+/*
+  MazeModule.h
+  8×8 WS2812B LED matrix maze — navigate from a random start to a random goal.
+  
+  The maze is a 6×6 grid centred inside the 8×8 matrix (1-pixel border).
+  Left encoder = move right/left. Right encoder = move up/down.
+  Penalty: hitting a wall = -3s.
+
+  Setup is deferred until both the Frequency module is done AND the Core
+  event has been resolved, to avoid drawing excess current during the flash.
+
+  Hardware:
+    - WS2812B 8×8 matrix: data pin 22, brightness capped at 10%
+    - Left encoder:  CLK→D2, DT→D3
+    - Right encoder: CLK→D4, DT→D5
+*/
 
 #include <Encoder.h>
 #include <Adafruit_NeoPixel.h>
 
-// Forward declare penalty function
 extern void applyPenalty(const char* reason);
-extern bool coreSolved;    // Check if core event is complete before setting up maze
-extern bool coreTriggered; // Check if core event has been triggered
+extern bool coreSolved;
+extern bool coreTriggered;
+extern Encoder encLeft;
+extern Encoder encRight;
+extern Adafruit_NeoPixel matrix;
 
-// =====================================================
-// NEOPIXEL COLOR DEFINITIONS
-// =====================================================
-// NeoPixel colors use 32-bit RGB format (0xRRGGBB)
-// Brightness is globally limited to 15% in main sketch
+// ── Colour palette ─────────────────────────────────────────────────────────
+
 const uint32_t COLOR_BLACK = 0x000000;
-const uint32_t COLOR_RED = 0xFF0000;
+const uint32_t COLOR_RED   = 0xFF0000;
 const uint32_t COLOR_GREEN = 0x00FF00;
-const uint32_t COLOR_BLUE = 0x0000FF;
+const uint32_t COLOR_BLUE  = 0x0000FF;
 const uint32_t COLOR_WHITE = 0xFFFFFF;
 
-// =====================================================
-// MATRIX MAZE MODULE
-// =====================================================
+// ── Grid dimensions ────────────────────────────────────────────────────────
 
 const int MAZE_W = 6;
 const int MAZE_H = 6;
 
-int playerX = 0;
-int playerY = 0;
-int goalX = 5;
-int goalY = 5;
+// ── State ──────────────────────────────────────────────────────────────────
 
-bool mazeSolved = false;
-bool mazeSetupDone = false;  // Track if maze LED matrix has been initialized
-bool mazeDisplayCleared = false;  // Track if maze display has been cleared after solving
-unsigned long mazeSolvedTime = 0;  // Track when maze was solved (to delay clearing)
-const unsigned long MAZE_CLEAR_DELAY = 1500;  // Show solution for 1.5 seconds before clearing
-long mazeLastLeftPos = 0;
+int playerX = 0, playerY = 0;
+int goalX   = 5, goalY   = 5;
+
+bool mazeSolved        = false;
+bool mazeSetupDone     = false;
+bool mazeDisplayCleared = false;
+
+unsigned long mazeSolvedTime = 0;
+const unsigned long MAZE_CLEAR_DELAY = 1500;
+
+long mazeLastLeftPos  = 0;
 long mazeLastRightPos = 0;
-unsigned long mazeLastLeftMoveTime = 0;  // Track time of last LEFT encoder move
-unsigned long mazeLastRightMoveTime = 0;  // Track time of last RIGHT encoder move
-const unsigned long mazeMoveDelay = 80;  // Delay between moves (ms) - per encoder
+unsigned long mazeLastLeftMoveTime  = 0;
+unsigned long mazeLastRightMoveTime = 0;
+const unsigned long mazeMoveDelay = 80;  // Min ms between moves per encoder
 
+// Wall arrays (true = wall exists on that side of this cell)
 bool wallRight[MAZE_H][MAZE_W];
-bool wallDown[MAZE_H][MAZE_W];
-bool wallLeft[MAZE_H][MAZE_W];
-bool wallUp[MAZE_H][MAZE_W];
+bool wallDown [MAZE_H][MAZE_W];
+bool wallLeft [MAZE_H][MAZE_W];
+bool wallUp   [MAZE_H][MAZE_W];
 
-// Forward declarations - these objects are declared in main file
-extern Encoder encLeft;
-extern Encoder encRight;
-extern Adafruit_NeoPixel matrix;  // NeoPixel strip object
+// ── Wall helpers ───────────────────────────────────────────────────────────
 
 void clearWalls() {
-  for (int y = 0; y < MAZE_H; y++) {
-    for (int x = 0; x < MAZE_W; x++) {
-      wallRight[y][x] = false;
-      wallDown[y][x] = false;
-      wallLeft[y][x] = false;
-      wallUp[y][x] = false;
-    }
-  }
+  for (int y = 0; y < MAZE_H; y++)
+    for (int x = 0; x < MAZE_W; x++)
+      wallRight[y][x] = wallDown[y][x] = wallLeft[y][x] = wallUp[y][x] = false;
 }
 
 void buildOuterWalls() {
   for (int x = 0; x < MAZE_W; x++) {
-    wallUp[0][x] = true;
-    wallDown[MAZE_H - 1][x] = true;
+    wallUp  [0]        [x] = true;
+    wallDown[MAZE_H-1] [x] = true;
   }
   for (int y = 0; y < MAZE_H; y++) {
-    wallLeft[y][0] = true;
-    wallRight[y][MAZE_W - 1] = true;
+    wallLeft [y][0]        = true;
+    wallRight[y][MAZE_W-1] = true;
   }
 }
 
-void addVerticalWall(int x, int y) {
-  wallRight[y][x] = true;
-  wallLeft[y][x + 1] = true;
+void addVerticalWall(int x, int y) {  // Wall between (x,y) and (x+1,y)
+  wallRight[y][x]   = true;
+  wallLeft [y][x+1] = true;
 }
 
-void addHorizontalWall(int x, int y) {
-  wallDown[y][x] = true;
-  wallUp[y + 1][x] = true;
+void addHorizontalWall(int x, int y) {  // Wall between (x,y) and (x,y+1)
+  wallDown[y]  [x] = true;
+  wallUp  [y+1][x] = true;
 }
 
-bool isMazePositionReachable(int startX, int startY, int targetX, int targetY) {
-  bool visited[MAZE_H][MAZE_W];
-  for (int y = 0; y < MAZE_H; y++) {
-    for (int x = 0; x < MAZE_W; x++) {
-      visited[y][x] = false;
-    }
-  }
+// BFS reachability check — used to validate random start/goal pairs
+bool isMazePositionReachable(int sx, int sy, int tx, int ty) {
+  bool visited[MAZE_H][MAZE_W] = {};
+  int qx[MAZE_W * MAZE_H], qy[MAZE_W * MAZE_H];
+  int head = 0, tail = 0;
 
-  const int maxCells = MAZE_W * MAZE_H;
-  int queueX[maxCells];
-  int queueY[maxCells];
-  int head = 0;
-  int tail = 0;
-
-  queueX[tail] = startX;
-  queueY[tail] = startY;
-  tail++;
-  visited[startY][startX] = true;
+  qx[tail] = sx; qy[tail] = sy; tail++;
+  visited[sy][sx] = true;
 
   while (head < tail) {
-    int x = queueX[head];
-    int y = queueY[head];
-    head++;
+    int x = qx[head], y = qy[head]; head++;
+    if (x == tx && y == ty) return true;
 
-    if (x == targetX && y == targetY) {
-      return true;
-    }
-
-    if (!wallRight[y][x] && !visited[y][x + 1]) {
-      visited[y][x + 1] = true;
-      queueX[tail] = x + 1;
-      queueY[tail] = y;
-      tail++;
-    }
-    if (!wallLeft[y][x] && !visited[y][x - 1]) {
-      visited[y][x - 1] = true;
-      queueX[tail] = x - 1;
-      queueY[tail] = y;
-      tail++;
-    }
-    if (!wallDown[y][x] && !visited[y + 1][x]) {
-      visited[y + 1][x] = true;
-      queueX[tail] = x;
-      queueY[tail] = y + 1;
-      tail++;
-    }
-    if (!wallUp[y][x] && !visited[y - 1][x]) {
-      visited[y - 1][x] = true;
-      queueX[tail] = x;
-      queueY[tail] = y - 1;
-      tail++;
-    }
+    if (!wallRight[y][x] && !visited[y][x+1]) { visited[y][x+1]=true; qx[tail]=x+1; qy[tail]=y;   tail++; }
+    if (!wallLeft [y][x] && !visited[y][x-1]) { visited[y][x-1]=true; qx[tail]=x-1; qy[tail]=y;   tail++; }
+    if (!wallDown [y][x] && !visited[y+1][x]) { visited[y+1][x]=true; qx[tail]=x;   qy[tail]=y+1; tail++; }
+    if (!wallUp   [y][x] && !visited[y-1][x]) { visited[y-1][x]=true; qx[tail]=x;   qy[tail]=y-1; tail++; }
   }
-
   return false;
 }
 
 void randomizeMazeStartAndGoal() {
-  const int maxAttempts = 100;
-  for (int attempt = 0; attempt < maxAttempts; attempt++) {
-    int startX = random(MAZE_W);
-    int startY = random(MAZE_H);
-    int endX = random(MAZE_W);
-    int endY = random(MAZE_H);
-
-    if (startX == endX && startY == endY) {
-      continue;
-    }
-
-    if (isMazePositionReachable(startX, startY, endX, endY)) {
-      playerX = startX;
-      playerY = startY;
-      goalX = endX;
-      goalY = endY;
+  for (int attempt = 0; attempt < 100; attempt++) {
+    int sx = random(MAZE_W), sy = random(MAZE_H);
+    int ex = random(MAZE_W), ey = random(MAZE_H);
+    if (sx == ex && sy == ey) continue;
+    if (isMazePositionReachable(sx, sy, ex, ey)) {
+      playerX = sx; playerY = sy;
+      goalX   = ex; goalY   = ey;
       return;
     }
   }
-
-  // Fallback to known-solvable corners if random attempts fail.
-  playerX = 0;
-  playerY = 0;
-  goalX = MAZE_W - 1;
-  goalY = MAZE_H - 1;
+  // Fallback: opposite corners (always solvable given the fixed layout)
+  playerX = 0; playerY = 0;
+  goalX = MAZE_W-1; goalY = MAZE_H-1;
 }
 
 void setupFirstMaze() {
   clearWalls();
   buildOuterWalls();
 
-  addVerticalWall(0, 1);
-  addVerticalWall(0, 2);
-  addVerticalWall(0, 3);
-  addVerticalWall(1, 5);
-  addVerticalWall(2, 0);
-  addVerticalWall(2, 1);
-  addVerticalWall(2, 2);
-  addVerticalWall(2, 4);
-  addVerticalWall(3, 3);
-  addVerticalWall(3, 5);
-  addVerticalWall(4, 4);
+  addVerticalWall(0,1); addVerticalWall(0,2); addVerticalWall(0,3);
+  addVerticalWall(1,5); addVerticalWall(2,0); addVerticalWall(2,1);
+  addVerticalWall(2,2); addVerticalWall(2,4); addVerticalWall(3,3);
+  addVerticalWall(3,5); addVerticalWall(4,4);
 
-  addHorizontalWall(1, 0);
-  addHorizontalWall(4, 0);
-  addHorizontalWall(5, 0);
-  addHorizontalWall(2, 1);
-  addHorizontalWall(3, 1);
-  addHorizontalWall(4, 1);
-  addHorizontalWall(1, 2);
-  addHorizontalWall(4, 2);
-  addHorizontalWall(1, 3);
-  addHorizontalWall(2, 3);
-  addHorizontalWall(3, 3);
-  addHorizontalWall(4, 3);
-  addHorizontalWall(1, 4);
-  addHorizontalWall(4, 4);
+  addHorizontalWall(1,0); addHorizontalWall(4,0); addHorizontalWall(5,0);
+  addHorizontalWall(2,1); addHorizontalWall(3,1); addHorizontalWall(4,1);
+  addHorizontalWall(1,2); addHorizontalWall(4,2); addHorizontalWall(1,3);
+  addHorizontalWall(2,3); addHorizontalWall(3,3); addHorizontalWall(4,3);
+  addHorizontalWall(1,4); addHorizontalWall(4,4);
 }
 
+// ── Rendering ──────────────────────────────────────────────────────────────
+
 void drawScene() {
-  // Clear all pixels to black
-  for (int i = 0; i < 64; i++) {
-    matrix.setPixelColor(i, COLOR_BLACK);
-  }
+  for (int i = 0; i < 64; i++) matrix.setPixelColor(i, COLOR_BLACK);
 
-  // Draw border walls (white)
+  // White border
   for (int x = 0; x < 8; x++) {
-    matrix.setPixelColor(x, COLOR_WHITE);                    // Top border
-    matrix.setPixelColor(7 * 8 + x, COLOR_WHITE);            // Bottom border
+    matrix.setPixelColor(x,       COLOR_WHITE);
+    matrix.setPixelColor(56 + x,  COLOR_WHITE);
   }
-
   for (int y = 0; y < 8; y++) {
-    matrix.setPixelColor(y * 8, COLOR_WHITE);                // Left border
-    matrix.setPixelColor(y * 8 + 7, COLOR_WHITE);            // Right border
+    matrix.setPixelColor(y * 8,       COLOR_WHITE);
+    matrix.setPixelColor(y * 8 + 7,   COLOR_WHITE);
   }
 
-  // Draw goal (player position + 1 for border offset)
-  int gx = goalX + 1;
-  int gy = goalY + 1;
-  matrix.setPixelColor(gy * 8 + gx, mazeSolved ? COLOR_GREEN : COLOR_BLUE);
+  // Goal (blue until solved, then green)
+  matrix.setPixelColor((goalY+1)*8 + (goalX+1), mazeSolved ? COLOR_GREEN : COLOR_BLUE);
 
-  // Draw player (red) - only if not solved
-  if (!mazeSolved) {
-    int px = playerX + 1;
-    int py = playerY + 1;
-    matrix.setPixelColor(py * 8 + px, COLOR_RED);
-  }
+  // Player (red)
+  if (!mazeSolved)
+    matrix.setPixelColor((playerY+1)*8 + (playerX+1), COLOR_RED);
 
-  matrix.show();  // Update the display
+  matrix.show();
 }
 
 void clearMazeDisplay() {
-  // Clear all pixels to black
-  for (int i = 0; i < 64; i++) {
-    matrix.setPixelColor(i, COLOR_BLACK);
-  }
-  matrix.show();  // Update the display
+  for (int i = 0; i < 64; i++) matrix.setPixelColor(i, COLOR_BLACK);
+  matrix.show();
 }
 
-void checkMazeSolved() {
-  if (playerX == goalX && playerY == goalY) {
-    mazeSolved = true;
-    mazeSolvedTime = millis();  // Record when maze was solved
-    drawScene();
-
-  }
-}
+// ── Movement (returns true on success, false = wall hit + penalty applied) ─
 
 bool moveRight() {
-  if (!wallRight[playerY][playerX]) {
-    playerX++;
-    return true;
-  }
-  // Hit a wall
-  applyPenalty("MazeWallHit");
-  return false;
+  if (!wallRight[playerY][playerX]) { playerX++; return true; }
+  applyPenalty("MazeWallHit"); return false;
 }
-
 bool moveLeft() {
-  if (!wallLeft[playerY][playerX]) {
-    playerX--;
-    return true;
-  }
-  // Hit a wall
-  applyPenalty("MazeWallHit");
-  return false;
+  if (!wallLeft[playerY][playerX])  { playerX--; return true; }
+  applyPenalty("MazeWallHit"); return false;
 }
-
 bool moveDown() {
-  if (!wallDown[playerY][playerX]) {
-    playerY++;
-    return true;
-  }
-  // Hit a wall
-  applyPenalty("MazeWallHit");
-  return false;
+  if (!wallDown[playerY][playerX])  { playerY++; return true; }
+  applyPenalty("MazeWallHit"); return false;
+}
+bool moveUp() {
+  if (!wallUp[playerY][playerX])    { playerY--; return true; }
+  applyPenalty("MazeWallHit"); return false;
 }
 
-bool moveUp() {
-  if (!wallUp[playerY][playerX]) {
-    playerY--;
-    return true;
-  }
-  // Hit a wall
-  applyPenalty("MazeWallHit");
-  return false;
-}
+// ── Setup / Update ─────────────────────────────────────────────────────────
 
 void setupMazeModule() {
-  // Initialize NeoPixel strip (already done in main setup, but ensure it's ready)
   matrix.begin();
-  matrix.show();  // Initialize all pixels to off
-  
-  mazeSolved = false;
-  // Initialize with RAW encoder values (no division) - same as updateMazeModule
-  mazeLastLeftPos = encLeft.read();
-  mazeLastRightPos = encRight.read();
+  matrix.show();
+  mazeSolved         = false;
+  mazeDisplayCleared = false;
+  mazeLastLeftPos    = encLeft.read();
+  mazeLastRightPos   = encRight.read();
   setupFirstMaze();
   randomizeMazeStartAndGoal();
   drawScene();
@@ -322,66 +212,45 @@ void setupMazeModule() {
 
 void updateMazeModule() {
   if (mazeSolved) {
-    // Clear the maze display after 1.5 second delay when the maze is first solved
-    if (!mazeDisplayCleared) {
-      unsigned long now = millis();
-      if (now - mazeSolvedTime >= MAZE_CLEAR_DELAY) {
-        clearMazeDisplay();
-        mazeDisplayCleared = true;
-      }
+    if (!mazeDisplayCleared && millis() - mazeSolvedTime >= MAZE_CLEAR_DELAY) {
+      clearMazeDisplay();
+      mazeDisplayCleared = true;
     }
     return;
   }
 
-  // Lazy initialization: only setup maze after core is solved to save power
+  // Defer setup until Frequency is done and Core event is resolved
   if (!mazeSetupDone) {
-    if (activeEncoderModule != MAZE_MODULE || (coreTriggered && !coreSolved)) {
-      return;  // Wait until core event is complete before setting up maze
-    }
+    if (activeEncoderModule != MAZE_MODULE || (coreTriggered && !coreSolved)) return;
     setupMazeModule();
     mazeSetupDone = true;
-    return;  // Return after setup so we don't process moves on first frame
+    return;
   }
 
   bool changed = false;
   unsigned long now = millis();
 
-  // Work with RAW encoder values (no division) - same as FrequencyModule
-  long currLeft = encLeft.read();
+  long currLeft  = encLeft.read();
   long changeLeft = currLeft - mazeLastLeftPos;
-  
-  // Allow left encoder to move independently of right encoder
   if (abs(changeLeft) >= 4 && now - mazeLastLeftMoveTime > mazeMoveDelay) {
-    if (changeLeft > 0) {
-      changed = moveRight();
-    } else {
-      changed = moveLeft();
-    }
+    changed = (changeLeft > 0) ? moveRight() : moveLeft();
     mazeLastLeftPos = currLeft;
-    if (changed) {
-      mazeLastLeftMoveTime = now;
-    }
+    if (changed) mazeLastLeftMoveTime = now;
   }
 
-  long currRight = encRight.read();
+  long currRight  = encRight.read();
   long changeRight = currRight - mazeLastRightPos;
-  
-  // Allow right encoder to move independently of left encoder
   if (abs(changeRight) >= 4 && now - mazeLastRightMoveTime > mazeMoveDelay) {
-    if (changeRight > 0) {
-      changed = moveUp();
-    } else {
-      changed = moveDown();
-    }
-      
+    changed = (changeRight > 0) ? moveUp() : moveDown();
     mazeLastRightPos = currRight;
-    if (changed) {
-      mazeLastRightMoveTime = now;
-    }
+    if (changed) mazeLastRightMoveTime = now;
   }
 
   if (changed) {
-    checkMazeSolved();
+    if (playerX == goalX && playerY == goalY) {
+      mazeSolved     = true;
+      mazeSolvedTime = millis();
+    }
     drawScene();
   }
 }
