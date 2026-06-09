@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPERATIONAL FIELD MANUAL: EX-99</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+        .active-nav { border-color: #f97316; color: #f97316; font-weight: 900; background-color: rgba(249, 115, 22, 0.05); }
+        .classified-stamp { transform: rotate(-5deg); text-shadow: 0 0 4px rgba(239,68,68,0.4); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-mono antialiased pb-28 selection:bg-red-900 selection:text-white">
+
+    <div class="bg-red-950/40 border-b border-red-900/60 px-4 py-2 text-center text-[10px] tracking-widest text-red-400 flex justify-between items-center uppercase font-sans">
+        <span>[ AUTHORITY: EXECUTIVE ORDER ]</span>
+        <span class="font-bold text-red-500 animate-pulse">DECLASSIFIED SUB-PROP EX-99</span>
+        <span>FOI ACT 1982 REQ</span>
+    </div>
+
+    <header class="sticky top-0 z-40 bg-zinc-900 border-b-2 border-red-700 px-4 py-3 flex justify-between items-center shadow-2xl backdrop-blur-md bg-opacity-95">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+                <span class="text-xs font-black tracking-wider text-red-500">CRITICAL STATE MONITOR</span>
+            </div>
+            <h1 class="text-sm font-black text-zinc-200 uppercase tracking-tight">PROJECT FIRECRACKER</h1>
+        </div>
+        <button onclick="toggleEmergencyModal(true)" class="bg-red-700 hover:bg-red-600 text-white font-black text-xs uppercase px-3 py-2.5 rounded-md shadow border border-red-500 transition-all active:scale-95">
+            ⚠️ CORE OVERHEATING PROTOCOL
+        </button>
+    </header>
+
+    <main class="max-w-xl mx-auto px-4 pt-4 space-y-6">
+
+        <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded-lg relative overflow-hidden flex flex-col gap-1 text-xs text-zinc-500">
+            <div class="absolute right-4 top-2 border-2 border-red-600/40 text-red-500/60 font-sans font-black text-xs tracking-widest uppercase px-2 py-0.5 rounded classified-stamp">
+                DECLASSIFIED<br><span class="text-[9px]">MAY 13, 2026</span>
+            </div>
+            <div><span class="text-zinc-400 font-bold">DOCUMENT:</span> OPERATIONAL FIELD MANUAL: EX-99</div>
+            <div><span class="text-zinc-400 font-bold">SUBJECT:</span> EXPLOSIVE DEVICE NEUTRALIZATION & DISPOSAL</div>
+            <div><span class="text-zinc-400 font-bold">REASON:</span> REQUEST UNDER FREEDOM OF INFORMATION ACT 1982</div>
+        </div>
+
+        <section id="sec-0" class="manual-section space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ RESTRICTED ACCESS ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 0: GENERAL PROTOCOL</h2>
+            </div>
+            
+            <p class="text-sm text-zinc-400 leading-relaxed">
+                Your primary directive is the non-destructive neutralization of an active, multi-module explosive device within the given time. Failure to comply with procedure will result in a <span class="text-red-400 font-bold underline decoration-red-600">rapid, regrettable increase in room temperature</span>.
+            </p>
+
+            <div class="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800">
+                <div class="p-3">
+                    <span class="text-xs font-black text-orange-500 block mb-1">⚠️ OPERATIONAL RESTRICTION: THE OPERATOR</span>
+                    <p class="text-xs text-zinc-400">Must remain visually and physically oblivious to the contents of this manual. <span class="text-zinc-200 italic">"You're paid to turn dials, not read."</span></p>
+                </div>
+                <div class="p-3">
+                    <span class="text-xs font-black text-orange-500 block mb-1">⚠️ OPERATIONAL RESTRICTION: THE EXPERT</span>
+                    <p class="text-xs text-zinc-400">Must maintain zero physical contact or visual exposure to the device. <span class="text-zinc-200 italic">"You're the brain; don't touch the goods."</span></p>
+                </div>
+            </div>
+
+            <div class="border border-zinc-800 bg-zinc-900/30 rounded-lg p-3 space-y-3 text-xs">
+                <div>
+                    <span class="font-bold text-zinc-300 block">0.1 INITIATE PROTOCOL</span>
+                    <p class="text-zinc-400">The Operator is required to insert the key and set it to the ON position. Congratulations, you are now actively in danger. The timer is running.</p>
+                </div>
+                <div>
+                    <span class="font-bold text-zinc-300 block">0.2 CONCLUDE PROTOCOL</span>
+                    <p class="text-zinc-400">Once all explosive modules have been successfully neutralized (and only then), the Operator will set the key to the OFF position. Turning the key off prematurely is strongly discouraged by our actuarial department.</p>
+                </div>
+                <div class="bg-red-950/20 border border-red-900/60 p-2.5 rounded text-zinc-300">
+                    <span class="font-black text-red-400 block uppercase mb-0.5">⚠️ THE FUN CLOCK (TIMING CONSIDERATIONS)</span>
+                    <p class="text-zinc-400 mb-2">CRITICAL WARNING: If the timer reaches zero, you have failed. The subsequent explosion is not a feature. It cannot be paused. It cannot be reset. It will not wait for you to refill your coffee.</p>
+                    <span class="text-red-400 font-bold">MISSTEP PENALTY:</span> Incorrect maneuvers by the Operator will result in a 3-second reduction of your remaining existence. Try to avoid this.
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-1" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: ECD-02D-A84 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 1: FREQUENCY SCRAMBLING</h2>
+            </div>
+            <p class="text-xs text-zinc-400">This module, critical for frequency stabilization, is comprised of two Rotary Input Devices and one Calibration Progress Indicator bar.</p>
+
+            <div class="flex bg-zinc-900 p-1 rounded-md border border-zinc-800 font-sans">
+                <button onclick="switchSubTab('s1-calc', this)" class="subtab-btn w-1/2 text-center py-2 text-xs font-black uppercase rounded bg-zinc-800 text-white transition-all">1.1 Dial Calibration</button>
+                <button onclick="switchSubTab('s1-wire', this)" class="subtab-btn w-1/2 text-center py-2 text-xs font-black uppercase rounded text-zinc-500 transition-all">1.2 Terminal Node</button>
+            </div>
+
+            <div id="s1-calc" class="subtab-content space-y-3 text-xs">
+                <div class="bg-red-950/10 border border-red-900/40 p-3 rounded text-zinc-400">
+                    <span class="font-bold text-red-400 block mb-1">⚠️ MISMANIPULATION WARNING</span>
+                    Unauthorized or erroneous manipulation, including selection of an incorrect dial or direction of rotation, triggers an automated safety override, advancing countdown timer by 3 seconds per instance.
+                </div>
+                <div class="bg-zinc-900 p-3 rounded-md border border-zinc-800 space-y-2">
+                    <span class="font-bold text-zinc-200 block">SEQUENCE DETERMINATION STEPS:</span>
+                    <p class="text-zinc-400">Once the operator locates and reports the serial number, determine the sequence by:</p>
+                    <ol class="list-decimal list-inside space-y-1 text-zinc-300 font-mono">
+                        <li>Taking the sum of the 4 digits in the serial number.</li>
+                        <li>Divide this sum by 5 and take the <span class="text-orange-400 font-bold">remainder</span> (Produces a value of 0-4).</li>
+                    </ol>
+                </div>
+                <div class="border border-zinc-800 rounded-md overflow-hidden">
+                    <table class="w-full text-center border-collapse text-[11px]">
+                        <thead>
+                            <tr class="bg-zinc-900 text-zinc-400 uppercase font-sans border-b border-zinc-800">
+                                <th class="py-2 border-r border-zinc-800">REM</th>
+                                <th class="py-2">DIAL PATTERN INSTRUCTIONS (CW / CCW)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">0</td><td class="px-3 text-left font-mono">L 3 CW | R 2 CCW | L 2 CCW | L 2 CW</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">1</td><td class="px-3 text-left font-mono">R 2 CW | L 3 CCW | R 1 CW | [BLANK]</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">2</td><td class="px-3 text-left font-mono">L 4 CW | R 1 CCW | R 1 CCW | [BLANK]</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">3</td><td class="px-3 text-left font-mono">R 3 CW | L 2 CCW | [BLANK] | [BLANK]</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">4</td><td class="px-3 text-left font-mono">L 1 CCW | R 4 CW | L 1 CW | [BLANK]</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-[10px] text-zinc-500 italic text-right">*CW = Clockwise, CCW = Counter Clockwise</p>
+            </div>
+
+            <div id="s1-wire" class="subtab-content hidden space-y-3 text-xs">
+                <p class="text-zinc-400 leading-relaxed">After successfully scrambling frequencies, permanently disable the communication module to stabilize the device. Ask the operator for the <span class="text-zinc-200 font-bold">last digit of the serial number</span>.</p>
+                <p class="text-zinc-500 italic bg-zinc-900/40 p-2 rounded border border-zinc-800/60">Note: Have the operator cut (or pull if your institution is unable to afford wire cutters) the specified wire. Target index denotes the slot when looking at the TOP row from the LEFT.</p>
+                
+                <div class="grid grid-cols-1 gap-1.5 font-mono">
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">0 or 5</strong></span>
+                        <span class="px-3 py-1 bg-red-950 text-red-400 border border-red-800/60 font-bold rounded">RED (Slot 1)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">1 or 6</strong></span>
+                        <span class="px-3 py-1 bg-blue-950 text-blue-400 border border-blue-800/60 font-bold rounded">BLUE (Slot 2)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">2 or 7</strong></span>
+                        <span class="px-3 py-1 bg-amber-950 text-yellow-500 border border-amber-800/60 font-bold rounded">YELLOW (Slot 3)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">3 or 8</strong></span>
+                        <span class="px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-bold rounded">GREEN (Slot 4)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">4 or 9</strong></span>
+                        <span class="px-3 py-1 bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold rounded">BLACK (Slot 5)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-2" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: MZE-07E-A61 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 2: PATHING PROTOCOL</h2>
+            </div>
+            
+            <div class="bg-orange-950/10 border border-orange-900/40 p-3 rounded text-xs text-zinc-400 space-y-1">
+                <span class="font-bold text-orange-400 block">🔒 HARDWARE LOCK NOTICE</span>
+                <p>The manufacturer locked this module; <span class="text-zinc-200 font-bold">it cannot be bypassed until the Frequency Scrambling module (ECD-02D-A84) has been successfully neutralized</span>.</p>
+            </div>
+
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                Welcome to the blindfolded navigation phase. This module features a grid display containing one <span class="text-red-400 font-bold">Red indicator (the Operator)</span> and one <span class="text-blue-400 font-bold">Blue indicator (the safe zone)</span>. The sadistic architect completely obfuscated the maze structure, rendering the walls invisible to the Operator. 
+            </p>
+
+            <div class="bg-zinc-900 p-3 rounded border border-zinc-800 space-y-2 text-xs">
+                <span class="font-bold text-zinc-200 block">📋 FIELD ARCHITECTURE NOTES:</span>
+                <ul class="list-disc list-inside space-y-1 text-zinc-400">
+                    <li>Movement is strictly limited to cardinal directions. Diagonal traversal is structurally impossible.</li>
+                    <li>Blindly fumbling into walls triggers a localized shock and <span class="text-red-400 font-bold">deducts 3 seconds from your remaining lifespan</span>.</li>
+                    <li>The module is defeated when the indicator reaches the target location, turning <span class="text-emerald-400 font-bold">mercifully green</span>.</li>
+                </ul>
+            </div>
+
+            <div class="bg-zinc-900 p-3 rounded border border-zinc-800 text-xs space-y-2">
+                <span class="font-black text-zinc-300 block uppercase">⚡ TERMINAL DE-ENERGISED PROTOCOL</span>
+                <p class="text-zinc-400">To permanently disable internal electrical pathing, the operator must cut the correct wire based on the <span class="text-zinc-200 font-bold">FIRST digit of the Serial Number</span>:</p>
+                
+                <div class="grid grid-cols-1 gap-1.5 font-mono pt-1">
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 0 or 1</span> <span class="text-blue-400 font-bold uppercase">BLUE (2)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 2 or 3</span> <span class="text-yellow-500 font-bold uppercase">Yellow (3)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 4 or 5</span> <span class="text-emerald-400 font-bold uppercase">Green (4)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 6 or 7</span> <span class="text-zinc-400 font-bold uppercase">Black (5)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 8 or 9</span> <span class="text-red-400 font-bold uppercase">RED (1)</span>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-zinc-500 italic mt-2">"We are reasonably confident that we have figured out the correct combination... however if these are wrong and you experience a detonation, please report the incident to Sgt. for internal investigation."</p>
+            </div>
+        </section>
+
+        <section id="sec-3" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: BTC-03X-P89 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 3: ENCRYPTION VALIDATION</h2>
+            </div>
+            
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                The architect implemented this sequential input validation system, presumably to <span class="text-zinc-200 font-bold">weed out operators with poor short-term memory</span>. The module consists of a red and a blue button.
+            </p>
+
+            <div class="bg-zinc-900 p-3 rounded-lg border border-zinc-800 text-xs space-y-2">
+                <span class="font-bold text-zinc-200 block">🕹️ INTERACTIVE INPUT SEQUENCE:</span>
+                <p class="text-zinc-400">Process each numerical digit of the device's serial number sequentially:</p>
+                <div class="grid grid-cols-2 gap-2 text-center pt-1 font-bold">
+                    <div class="p-2.5 bg-red-950/40 border border-red-800/80 rounded text-red-400">EVEN NUMBERS<br><span class="text-[10px] text-zinc-400 font-normal">Press RED Button</span></div>
+                    <div class="p-2.5 bg-blue-950/40 border border-blue-800/80 rounded text-blue-400">ODD NUMBERS<br><span class="text-[10px] text-zinc-400 font-normal">Press BLUE Button</span></div>
+                </div>
+                <p class="text-[10px] text-orange-400 font-sans italic mt-1">⚠️ CRITICAL: Inputs must be entered in quick succession and with no hesitation between presses.</p>
+            </div>
+
+            <div class="border border-zinc-800 bg-zinc-900/30 p-3 rounded-md text-xs space-y-2">
+                <span class="font-black text-red-400 block uppercase">⚡ DE-ENERGISATION UNCERTAINTY MATRIX</span>
+                <p class="text-zinc-400 leading-relaxed">
+                    Now feels like the right time to mention that the behavior of the bomb if the operator has cut the wrong wire is unknown. Common speculation is that it would enter into an unstable state which could result in a substantially shortened time until detonation, immediate detonation, or nothing at all. <span class="text-zinc-200 underline font-bold">Don't fumble the one single instruction given.</span>
+                </p>
+
+                <div class="border border-zinc-800 rounded overflow-hidden mt-2">
+                    <div class="bg-zinc-900 px-2 py-1.5 text-[10px] uppercase font-bold border-b border-zinc-800 text-zinc-400">Serial Last Letter → Target Wire</div>
+                    <div class="divide-y divide-zinc-800 text-[11px] font-mono">
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>A, F, K, P, U, Z</span> <span class="text-yellow-500 font-bold">Yellow (3)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-900/50"><span>B, G, L, W</span> <span class="text-emerald-400 font-bold">Green (4)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>C, H, M, R, X, Y</span> <span class="text-zinc-400 font-bold">Black (5)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-900/50"><span>D, I, N, S, T</span> <span class="text-red-400 font-bold">RED (1)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>E, J, O</span> <span class="text-blue-400 font-bold">BLUE (2)</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-4" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: BRB-02G-J67 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 4: LOCKOUT OVERRIDE</h2>
+            </div>
+
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                This module consists of a singular, highly tempting <span class="text-red-500 font-bold uppercase">Big Red Button</span>. Human instinct will naturally scream at the Operator to press it immediately. <span class="text-red-400 font-black underline">DON'T PRESS THE BUTTON</span> (until all other modules are completed).
+            </p>
+
+            <div class="bg-zinc-900 border-2 border-red-900 p-4 rounded-xl space-y-3 text-xs bg-gradient-to-b from-zinc-900 to-red-950/20">
+                <span class="font-black text-red-500 block text-sm uppercase tracking-wide">🛑 FINAL MODULE OPERATION PROTOCOL:</span>
+                <p class="text-zinc-300">Once all other threats have been successfully neutralized, the Operator may engage this final module:</p>
+                
+                <ol class="list-decimal list-inside space-y-2 text-zinc-400 font-mono bg-zinc-950 p-3 rounded border border-zinc-800">
+                    <li>Closely monitor the countdown timer window.</li>
+                    <li>Wait patiently.</li>
+                    <li><span class="text-zinc-100 font-bold">If any of the values in the timer contain a '1'</span>, press the red button instantly.</li>
+                </ol>
+
+                <p class="text-zinc-400 italic text-[11px] pt-1">
+                    ⚠️ <span class="text-red-400 font-bold">CRITICAL PENALTY:</span> Pressing the button when a '1' is not present will result in the <span class="text-zinc-200 font-bold">immediate and permanent conclusion of your employment</span> (along with bringing the sudden room heating event 3 seconds closer).
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="emergency-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-zinc-900 border-2 border-red-600 w-full max-w-md rounded-xl overflow-hidden shadow-2xl font-mono">
+            <div class="bg-red-600 px-4 py-3 text-white font-black uppercase text-center tracking-wider text-xs">
+                🚨 EMERGENCY RESPONSE PROTOCOL: THERMAL INSTABILITY
+            </div>
+            <div class="p-4 space-y-3 text-xs">
+                <div class="bg-red-950/50 text-red-400 p-2.5 border border-red-900 rounded font-bold">
+                    ALL ACTIVE DEFUSAL OPERATIONS MUST STOP. FAILURE TO STABILISE THE CORE WILL RESULT IN DETONATION.
+                </div>
+                <p class="text-zinc-300">Upon completion of a random module, the device may enter a critical thermal state. Indicators of thermal failure include:</p>
+                <ul class="list-disc list-inside text-zinc-400 pl-1 space-y-0.5">
+                    <li>Flashing countdown timer</li>
+                    <li><span class="text-red-400 font-bold">"CORE OVERHEATING"</span> warning display message</li>
+                </ul>
+                
+                <div class="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-2">
+                    <span class="text-zinc-200 font-bold block">EMERGENCY STABILISATION ACTIONS:</span>
+                    <ol class="list-decimal list-inside space-y-1.5 text-zinc-400">
+                        <li>Locate the <span class="text-zinc-200 font-bold">black ventilation mesh</span> on the back right.</li>
+                        <li>Operator must direct <span class="text-zinc-200 font-bold">continuous airflow</span> into the vent by blowing.</li>
+                        <li>Maintain airflow for approximately <span class="text-orange-400 font-bold">5 seconds</span>, until the alarm and warning message disappear.</li>
+                    </ol>
+                </div>
+
+                <button onclick="toggleEmergencyModal(false)" class="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase rounded border border-zinc-700 tracking-wider transition-all mt-2 active:scale-95">
+                    Clear Screen & Return to Modules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/95 border-t-2 border-zinc-800 grid grid-cols-5 py-2 px-1 shadow-2xl backdrop-blur-md">
+        <button onclick="switchSection('sec-0', this)" class="nav-btn active-nav flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent">
+            <span class="text-base mb-0.5">⚙️</span><span>Gen</span>
+        </button>
+        <button onclick="switchSection('sec-1', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">📡</span><span>Sect 1</span>
+        </button>
+        <button onclick="switchSection('sec-2', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🧭</span><span>Sect 2</span>
+        </button>
+        <button onclick="switchSection('sec-3', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🔐</span><span>Sect 3</span>
+        </button>
+        <button onclick="switchSection('sec-4', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🔴</span><span>Sect 4</span>
+        </button>
+    </nav>
+
+    <script>
+        function switchSection(sectionId, element) {
+            document.querySelectorAll('.manual-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active-nav');
+                btn.classList.add('text-zinc-500');
+            });
+            element.classList.add('active-nav');
+            element.classList.remove('text-zinc-500');
+            window.scrollTo(0, 0);
+        }
+
+        function switchSubTab(subTabId, element) {
+            const container = element.closest('.manual-section');
+            container.querySelectorAll('.subtab-content').forEach(content => content.classList.add('hidden'));
+            container.querySelector(`#${subTabId}`).classList.remove('hidden');
+
+            container.querySelectorAll('.subtab-btn').forEach(btn => {
+                btn.classList.remove('bg-zinc-800', 'text-white', 'font-black');
+                btn.classList.add('text-zinc-500');
+            });
+            element.classList.add('bg-zinc-800', 'text-white', 'font-black');
+            element.classList.remove('text-zinc-500');
+        }
+
+        function toggleEmergencyModal(show) {
+            const modal = document.getElementById('emergency-modal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
