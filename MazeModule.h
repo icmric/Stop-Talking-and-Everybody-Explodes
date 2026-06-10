@@ -9,6 +9,9 @@
   Left encoder = move right/left. Right encoder = move up/down.
   Penalty: hitting a wall = -3s.
 
+  Maze layout is selected from 4 options based on serial letter 2 (via getMazeIndex()):
+    A–G → Maze 0,  H–N → Maze 1,  O–U → Maze 2,  V–Z → Maze 3
+
   Setup is deferred until both the Frequency module is done AND the Core
   event has been resolved, to avoid drawing excess current during the flash.
 
@@ -20,6 +23,7 @@
 
 #include <Encoder.h>
 #include <Adafruit_NeoPixel.h>
+#include "SerialNumber.h"
 
 extern void applyPenalty(const char* reason);
 extern bool coreSolved;
@@ -46,8 +50,8 @@ const int MAZE_H = 6;
 int playerX = 0, playerY = 0;
 int goalX   = 5, goalY   = 5;
 
-bool mazeSolved        = false;
-bool mazeSetupDone     = false;
+bool mazeSolved         = false;
+bool mazeSetupDone      = false;
 bool mazeDisplayCleared = false;
 
 unsigned long mazeSolvedTime = 0;
@@ -57,7 +61,7 @@ long mazeLastLeftPos  = 0;
 long mazeLastRightPos = 0;
 unsigned long mazeLastLeftMoveTime  = 0;
 unsigned long mazeLastRightMoveTime = 0;
-const unsigned long mazeMoveDelay = 80;  // Min ms between moves per encoder
+const unsigned long mazeMoveDelay = 80;
 
 // Wall arrays (true = wall exists on that side of this cell)
 bool wallRight[MAZE_H][MAZE_W];
@@ -84,17 +88,99 @@ void buildOuterWalls() {
   }
 }
 
-void addVerticalWall(int x, int y) {  // Wall between (x,y) and (x+1,y)
+void addVerticalWall(int x, int y) {
   wallRight[y][x]   = true;
   wallLeft [y][x+1] = true;
 }
 
-void addHorizontalWall(int x, int y) {  // Wall between (x,y) and (x,y+1)
+void addHorizontalWall(int x, int y) {
   wallDown[y]  [x] = true;
   wallUp  [y+1][x] = true;
 }
 
-// BFS reachability check — used to validate random start/goal pairs
+// ── Maze layouts ───────────────────────────────────────────────────────────
+
+void setupMaze0() {
+  clearWalls();
+  buildOuterWalls();
+
+  addVerticalWall(0,1); addVerticalWall(0,2); addVerticalWall(0,3);
+  addVerticalWall(1,5); addVerticalWall(2,0); addVerticalWall(2,1);
+  addVerticalWall(2,2); addVerticalWall(2,4); addVerticalWall(3,3);
+  addVerticalWall(3,5); addVerticalWall(4,4);
+
+  addHorizontalWall(1,0); addHorizontalWall(4,0); addHorizontalWall(5,0);
+  addHorizontalWall(2,1); addHorizontalWall(3,1); addHorizontalWall(4,1);
+  addHorizontalWall(1,2); addHorizontalWall(4,2); addHorizontalWall(1,3);
+  addHorizontalWall(2,3); addHorizontalWall(3,3); addHorizontalWall(4,3);
+  addHorizontalWall(1,4); addHorizontalWall(4,4);
+}
+
+void setupMaze1() {
+  clearWalls();
+  buildOuterWalls();
+
+  addVerticalWall(0,0); addVerticalWall(4,0);
+  addVerticalWall(0,1); addVerticalWall(1,1); addVerticalWall(4,1);
+  addVerticalWall(0,2); addVerticalWall(1,2); addVerticalWall(3,2); addVerticalWall(4,2);
+  addVerticalWall(0,3); addVerticalWall(4,3);
+  addVerticalWall(0,4); addVerticalWall(2,4); addVerticalWall(4,4);
+  addVerticalWall(2,5);
+
+  addHorizontalWall(2,0); addHorizontalWall(3,0);
+  addHorizontalWall(3,1); addHorizontalWall(4,1);
+  addHorizontalWall(2,2); addHorizontalWall(3,2);
+  addHorizontalWall(1,3); addHorizontalWall(3,3);
+  addHorizontalWall(2,4); addHorizontalWall(4,4);
+}
+
+void setupMaze2() {
+  clearWalls();
+  buildOuterWalls();
+
+  addVerticalWall(0,0); addVerticalWall(2,0); addVerticalWall(3,0);
+  addVerticalWall(2,1);
+  addVerticalWall(0,2); addVerticalWall(1,2); addVerticalWall(4,2);
+  addVerticalWall(0,3); addVerticalWall(1,3); addVerticalWall(3,3);
+  addVerticalWall(0,4); addVerticalWall(3,4);
+  addVerticalWall(1,5); addVerticalWall(4,5);
+
+  addHorizontalWall(1,0); addHorizontalWall(4,0);
+  addHorizontalWall(3,1);
+  addHorizontalWall(3,2); addHorizontalWall(4,2);
+  addHorizontalWall(2,3); addHorizontalWall(4,3); addHorizontalWall(5,3);
+  addHorizontalWall(0,4); addHorizontalWall(2,4);
+}
+
+void setupMaze3() {
+  clearWalls();
+  buildOuterWalls();
+
+  addVerticalWall(0,1); addVerticalWall(1,1); addVerticalWall(4,1);
+  addVerticalWall(0,2); addVerticalWall(4,2);
+  addVerticalWall(1,3); addVerticalWall(3,3); addVerticalWall(4,3);
+  addVerticalWall(0,4); addVerticalWall(4,4);
+  addVerticalWall(1,5);
+
+  addHorizontalWall(1,0); addHorizontalWall(3,0); addHorizontalWall(4,0);
+  addHorizontalWall(0,1); addHorizontalWall(2,1); addHorizontalWall(3,1);
+  addHorizontalWall(4,2);
+  addHorizontalWall(1,3); addHorizontalWall(2,3); addHorizontalWall(5,3);
+  addHorizontalWall(1,4); addHorizontalWall(3,4); addHorizontalWall(4,4);
+}
+
+void selectAndBuildMaze() {
+  switch (getMazeIndex()) {
+    case 0: setupMaze0(); break;
+    case 1: setupMaze1(); break;
+    case 2: setupMaze2(); break;
+    case 3: setupMaze3(); break;
+    default: setupMaze0(); break;
+  }
+}
+
+// ── BFS reachability check ─────────────────────────────────────────────────
+
 bool isMazePositionReachable(int sx, int sy, int tx, int ty) {
   bool visited[MAZE_H][MAZE_W] = {};
   int qx[MAZE_W * MAZE_H], qy[MAZE_W * MAZE_H];
@@ -126,25 +212,9 @@ void randomizeMazeStartAndGoal() {
       return;
     }
   }
-  // Fallback: opposite corners (always solvable given the fixed layout)
+  // Fallback: opposite corners
   playerX = 0; playerY = 0;
   goalX = MAZE_W-1; goalY = MAZE_H-1;
-}
-
-void setupFirstMaze() {
-  clearWalls();
-  buildOuterWalls();
-
-  addVerticalWall(0,1); addVerticalWall(0,2); addVerticalWall(0,3);
-  addVerticalWall(1,5); addVerticalWall(2,0); addVerticalWall(2,1);
-  addVerticalWall(2,2); addVerticalWall(2,4); addVerticalWall(3,3);
-  addVerticalWall(3,5); addVerticalWall(4,4);
-
-  addHorizontalWall(1,0); addHorizontalWall(4,0); addHorizontalWall(5,0);
-  addHorizontalWall(2,1); addHorizontalWall(3,1); addHorizontalWall(4,1);
-  addHorizontalWall(1,2); addHorizontalWall(4,2); addHorizontalWall(1,3);
-  addHorizontalWall(2,3); addHorizontalWall(3,3); addHorizontalWall(4,3);
-  addHorizontalWall(1,4); addHorizontalWall(4,4);
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -152,20 +222,17 @@ void setupFirstMaze() {
 void drawScene() {
   for (int i = 0; i < 64; i++) matrix.setPixelColor(i, COLOR_BLACK);
 
-  // White border
   for (int x = 0; x < 8; x++) {
-    matrix.setPixelColor(x,       COLOR_WHITE);
-    matrix.setPixelColor(56 + x,  COLOR_WHITE);
+    matrix.setPixelColor(x,      COLOR_WHITE);
+    matrix.setPixelColor(56 + x, COLOR_WHITE);
   }
   for (int y = 0; y < 8; y++) {
-    matrix.setPixelColor(y * 8,       COLOR_WHITE);
-    matrix.setPixelColor(y * 8 + 7,   COLOR_WHITE);
+    matrix.setPixelColor(y * 8,     COLOR_WHITE);
+    matrix.setPixelColor(y * 8 + 7, COLOR_WHITE);
   }
 
-  // Goal (blue until solved, then green)
   matrix.setPixelColor((goalY+1)*8 + (goalX+1), mazeSolved ? COLOR_GREEN : COLOR_BLUE);
 
-  // Player (red)
   if (!mazeSolved)
     matrix.setPixelColor((playerY+1)*8 + (playerX+1), COLOR_RED);
 
@@ -177,7 +244,7 @@ void clearMazeDisplay() {
   matrix.show();
 }
 
-// ── Movement (returns true on success, false = wall hit + penalty applied) ─
+// ── Movement ───────────────────────────────────────────────────────────────
 
 bool moveRight() {
   if (!wallRight[playerY][playerX]) { playerX++; return true; }
@@ -205,7 +272,7 @@ void setupMazeModule() {
   mazeDisplayCleared = false;
   mazeLastLeftPos    = encLeft.read();
   mazeLastRightPos   = encRight.read();
-  setupFirstMaze();
+  selectAndBuildMaze();
   randomizeMazeStartAndGoal();
   drawScene();
 }
@@ -219,7 +286,6 @@ void updateMazeModule() {
     return;
   }
 
-  // Defer setup until Frequency is done and Core event is resolved
   if (!mazeSetupDone) {
     if (activeEncoderModule != MAZE_MODULE || (coreTriggered && !coreSolved)) return;
     setupMazeModule();
@@ -230,7 +296,7 @@ void updateMazeModule() {
   bool changed = false;
   unsigned long now = millis();
 
-  long currLeft  = encLeft.read();
+  long currLeft   = encLeft.read();
   long changeLeft = currLeft - mazeLastLeftPos;
   if (abs(changeLeft) >= 4 && now - mazeLastLeftMoveTime > mazeMoveDelay) {
     changed = (changeLeft > 0) ? moveRight() : moveLeft();
@@ -238,7 +304,7 @@ void updateMazeModule() {
     if (changed) mazeLastLeftMoveTime = now;
   }
 
-  long currRight  = encRight.read();
+  long currRight   = encRight.read();
   long changeRight = currRight - mazeLastRightPos;
   if (abs(changeRight) >= 4 && now - mazeLastRightMoveTime > mazeMoveDelay) {
     changed = (changeRight > 0) ? moveUp() : moveDown();

@@ -119,6 +119,23 @@ String generateSerialNumber() {
   return s;
 }
 
+// ── Module selectors ──────────────────────────────────────────────────────────
+ 
+// Maze layout: based on second letter, split into 4 groups.
+//   A–G → 0,  H–N → 1,  O–U → 2,  V–Z → 3
+// Manual table: check serial letter 2, find its group, that's the maze number.
+int getMazeIndex() {
+  char l = getSerialLetter2();
+  if (l <= 'G') return 0;
+  if (l <= 'N') return 1;
+  if (l <= 'U') return 2;
+  return 3;
+}
+ 
+// Convenience aliases used by DistanceModule
+int getSecondToLastDigit() { return getSerialDigit(3); }
+int getLastDigit()         { return getSerialDigit(4); }
+
 // ── Calculations ──────────────────────────────────────────────────────────────
 
 // Sum of all four digits (0-36).

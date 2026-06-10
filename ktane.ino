@@ -11,8 +11,6 @@
     Maze Navigator       — LED matrix pathfinding (shares encoders with Frequency)
     Core Overheating     — blow-to-cool microphone event (random trigger)
     Button Combo         — timed button sequence
-    Distance Control     — ultrasonic hold-distance puzzle
-    Signal Alignment     — compass direction puzzle (currently bypassed)
 
   PIN MAP:
     D2, D3   Left encoder  (CLK / DT)
@@ -22,8 +20,7 @@
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
     D11      Green button (INPUT_PULLUP)
-    D12      Ultrasonic sensor
-    D20, D21 I2C bus — LCD 16×2 (0x27), Compass HMC5883L (0x1E)
+    D20, D21 I2C bus — LCD 16×2 (0x27)
     D22      8×8 WS2812B matrix (NeoPixel data)
     D31      Key switch
     D35,37,39,41,43,45,47,49,51,53  LED bar (10 LEDs)
@@ -36,10 +33,6 @@
 #include <DIYables_4Digit7Segment_TM1637.h>
 
 #include "SerialNumber.h"
-
-// Declared here (before module headers) so DistanceModule.h can initialise
-// its Ultrasonic object at global-scope with the correct pin number.
-const int ULTRASONIC_PIN = 12;
 
 // ── Module enable enum — defined before module headers ─────────────────────
 
@@ -59,8 +52,6 @@ enum GameState {
 #include "CoreModule.h"
 #include "MazeModule.h"
 #include "ButtonComboModule.h"
-#include "DistanceModule.h"
-#include "signalAlignment.h"
 
 // ── Debug / bypass flags ───────────────────────────────────────────────────
 // Set to true to skip a module during development/testing.
@@ -69,8 +60,6 @@ const bool BYPASS_FREQUENCY_MODULE  = true;
 const bool BYPASS_MAZE_MODULE       = false;
 const bool BYPASS_CORE_MODULE       = true;
 const bool BYPASS_BUTTON_COMBO      = false;
-const bool BYPASS_DISTANCE_MODULE   = false;
-const bool BYPASS_SIGNAL_ALIGNMENT  = true;
 
 // When true, skips the key-switch requirement and starts immediately on boot.
 const bool AUTO_START_GAME = true;
@@ -176,8 +165,6 @@ bool allModulesSolved() {
   if (!BYPASS_MAZE_MODULE       && !mazeSolved)           return false;
   if (!BYPASS_CORE_MODULE       && !coreSolved)           return false;
   if (!BYPASS_BUTTON_COMBO      && !buttonComboSolved)    return false;
-  if (!BYPASS_DISTANCE_MODULE   && !distanceSolved)       return false;
-  if (!BYPASS_SIGNAL_ALIGNMENT  && !signalAlignmentSolved) return false;
   return true;
 }
 
@@ -187,19 +174,15 @@ int getTotalModuleCount() {
   if (!BYPASS_MAZE_MODULE)      n++;
   if (!BYPASS_CORE_MODULE)      n++;
   if (!BYPASS_BUTTON_COMBO)     n++;
-  if (!BYPASS_DISTANCE_MODULE)  n++;
-  if (!BYPASS_SIGNAL_ALIGNMENT) n++;
   return n;
 }
 
 int getSolvedModuleCount() {
   int n = 0;
-  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved)  n++;
-  if (!BYPASS_MAZE_MODULE       && mazeSolved)            n++;
-  if (!BYPASS_CORE_MODULE       && coreSolved)            n++;
-  if (!BYPASS_BUTTON_COMBO      && buttonComboSolved)     n++;
-  if (!BYPASS_DISTANCE_MODULE   && distanceSolved)        n++;
-  if (!BYPASS_SIGNAL_ALIGNMENT  && signalAlignmentSolved) n++;
+  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) n++;
+  if (!BYPASS_MAZE_MODULE       && mazeSolved)           n++;
+  if (!BYPASS_CORE_MODULE       && coreSolved)           n++;
+  if (!BYPASS_BUTTON_COMBO      && buttonComboSolved)    n++;
   return n;
 }
 
@@ -445,8 +428,6 @@ void resetGameModules() {
   coreTriggered         = false;
   coreSolved            = false;
   buttonComboSolved     = false;
-  distanceSolved        = false;
-  signalAlignmentSolved = false;
   endSequencePlayed     = false;
 
   lastFrequencyModuleSolved = false;
@@ -461,14 +442,14 @@ void startGame() {
   timerFinished    = false;
   timerLastTick    = millis();
   remainingSeconds = TIMER_START_MINUTES * 60;
-  activeEncoderModule = FREQUENCY_MODULE;
+  activeEncoderModule = BYPASS_FREQUENCY_MODULE ? MAZE_MODULE : FREQUENCY_MODULE;
   updateTimerDisplay();
 }
 
 void handleKeySwitch() {
   if (!readKeySwitchDebounced()) return;
 
-  if (keyCurrentState == LOW) {
+  if (keyCurrentState == HIGH) {
     // Key turned ON
     if (currentGameState == STATE_IDLE) startGame();
 
@@ -540,7 +521,7 @@ void setup() {
   initializeLedBar();
 
   pinMode(BUZZER_PIN,     OUTPUT);
-  pinMode(KEY_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(KEY_SWITCH_PIN, INPUT);
   pinMode(ENC_LEFT_A,  INPUT_PULLUP);
   pinMode(ENC_LEFT_B,  INPUT_PULLUP);
   pinMode(ENC_RIGHT_A, INPUT_PULLUP);
@@ -559,7 +540,6 @@ void setup() {
   setupCoreModule();
   setupFrequencyModule();
   setupButtonComboModule();
-  setupDistanceModule();
   clearMazeDisplay();
   // Maze full setup is deferred until Frequency + Core are complete
 
@@ -588,14 +568,6 @@ void setup() {
   if (BYPASS_BUTTON_COMBO) {
     buttonComboSolved = true;
     Serial.println(F("BYPASS: Button combo"));
-  }
-  if (BYPASS_DISTANCE_MODULE) {
-    distanceSolved = true;
-    Serial.println(F("BYPASS: Distance module"));
-  }
-  if (BYPASS_SIGNAL_ALIGNMENT) {
-    signalAlignmentSolved = true;
-    Serial.println(F("BYPASS: Signal alignment"));
   }
 
   debugPrintSerial();
@@ -634,15 +606,5 @@ void loop() {
     } else {
       updateMazeModule();
     }
-
-    updateDistanceModule();
-
-    // Signal alignment activates after all other modules complete
-    // Uncomment when compass hardware is connected and calibrated:
-    // if (allModulesSolved() && !signalAlignmentSolved) {
-    //   static bool signalSetupDone = false;
-    //   if (!signalSetupDone) { setupSignalAlignmentModule(); signalSetupDone = true; }
-    //   updateSignalAlignmentModule();
-    // }
   }
 }
