@@ -22,46 +22,6 @@ void seedRandom() {
   randomSeed(analogRead(A4) + analogRead(A5) + micros());
 }
 
-String generateSerialNumber() {
-    // Generate the entire serial number
-  String s = "";
-  for (int i = 0; i < 4; i++)
-   {
-    s += (char)('A' + random(0, 26));   // Positions 1-4: A-Z
-   }
-  s += '-';
-  for (int i = 0; i < 4; i++) {
-    s += (char)('0' + random(0, 10));   // Digits 1-4: 0-9
-  }
-
-  // Before returning it we need to validate that it correct, if it is then return, otherwise regenerate components until its valid.
-  bombSerialNumber = s;
-    int mod1 = getMod1Color(getSerialDigit4());
-    int mod2 = getMod2Color(getSerialDigit1());
-    int mod3 = getMod3Color(getSerialLetter4());
-    // Keep updating the value dictating module 2 until it becomes valid
-    while (mod1 == mod2) {
-        // Regenerate the first digit if colides with module 1
-        s[5] = (char)('0' + random(0, 10));
-
-        // update the value if we updated it, 
-        bombSerialNumber = s;
-        mod2 = getMod2Color(getSerialDigit1());
-    }
-
-    // Basically the same but this time looking at module 3 rather than 2, and randomising a letter 
-    while (mod2 == mod3) {
-        // Regenerate the first digit if colides with module 1
-        s[3] = (char)('A' + random(0, 26));
-
-        // update the value if we updated it, 
-        bombSerialNumber = s;
-        mod3 = getMod3Color(getSerialLetter4());
-    }
-
-  return s;
-}
-
 // ── Letter accessors (1-based, positions 1-4) ─────────────────────────────────
 
 char getSerialLetter(int pos) {
@@ -116,6 +76,48 @@ int getMod3Color(char letter) {
 // Convenience aliases used by DistanceModule
 int getSecondToLastDigit() { return getSerialDigit(3); }
 int getLastDigit()         { return getSerialDigit(4); }
+
+
+
+String generateSerialNumber() {
+    // Generate the entire serial number
+  String s = "";
+  for (int i = 0; i < 4; i++)
+   {
+    s += (char)('A' + random(0, 26));   // Positions 1-4: A-Z
+   }
+  s += '-';
+  for (int i = 0; i < 4; i++) {
+    s += (char)('0' + random(0, 10));   // Digits 1-4: 0-9
+  }
+
+  // Before returning it we need to validate that it correct, if it is then return, otherwise regenerate components until its valid.
+  bombSerialNumber = s;
+    int mod1 = getMod1Color(getSerialDigit4());
+    int mod2 = getMod2Color(getSerialDigit1());
+    int mod3 = getMod3Color(getSerialLetter4());
+    // Keep updating the value dictating module 2 until it becomes valid
+    while (mod1 == mod2) {
+        // Regenerate the first digit if colides with module 1
+        s[5] = (char)('0' + random(0, 10));
+
+        // update the value if we updated it, 
+        bombSerialNumber = s;
+        mod2 = getMod2Color(getSerialDigit1());
+    }
+
+    // Basically the same but this time looking at module 3 rather than 2, and randomising a letter 
+    while (mod2 == mod3) {
+        // Regenerate the first digit if colides with module 1
+        s[3] = (char)('A' + random(0, 26));
+
+        // update the value if we updated it, 
+        bombSerialNumber = s;
+        mod3 = getMod3Color(getSerialLetter4());
+    }
+
+  return s;
+}
 
 // ── Calculations ──────────────────────────────────────────────────────────────
 
