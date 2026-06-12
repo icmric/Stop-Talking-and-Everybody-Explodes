@@ -131,10 +131,6 @@ int getMazeIndex() {
   if (l <= 'U') return 2;
   return 3;
 }
- 
-// Convenience aliases used by DistanceModule
-int getSecondToLastDigit() { return getSerialDigit(3); }
-int getLastDigit()         { return getSerialDigit(4); }
 
 // ── Calculations ──────────────────────────────────────────────────────────────
 

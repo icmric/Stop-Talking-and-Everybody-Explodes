@@ -206,7 +206,10 @@ void applyPenalty(const char* /*reason*/) {
 // AUDIO
 // =============================================================================
 
-void stopBuzzer() { noTone(BUZZER_PIN); }
+void stopBuzzer() {
+  noTone(BUZZER_PIN);
+  digitalWrite(BUZZER_PIN, LOW);
+}
 
 void playSuccessTone() {
   const int notes[] = {523, 659, 784, 1047, 784, 659, 523};
@@ -214,7 +217,7 @@ void playSuccessTone() {
     tone(BUZZER_PIN, notes[i], 150);
     delay(200);
   }
-  noTone(BUZZER_PIN);
+  stopBuzzer();
 }
 
 float getTimerProgress() {
@@ -230,12 +233,12 @@ void updateBuzzer() {
     if (cycleTime < 200 || (cycleTime >= 250 && cycleTime < 450) || (cycleTime >= 500 && cycleTime < 700))
       tone(BUZZER_PIN, 1500, 200);
     else
-      noTone(BUZZER_PIN);
+      stopBuzzer();
     return;
   }
 
   if (!timerRunning || timerFinished || remainingSeconds <= 0) {
-    noTone(BUZZER_PIN);
+    stopBuzzer();
     return;
   }
 
@@ -510,6 +513,9 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   delay(500);
+
+  // Hopefully stops the buzzing noise
+  stopBuzzer();
 
   matrix.begin();
   matrix.setBrightness(25);  // ~10% — protects power supply
