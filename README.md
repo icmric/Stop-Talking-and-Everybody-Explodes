@@ -12,7 +12,7 @@ All components used are very generic and inexpencive. I have linked each item be
 
 ### Hardware
 * [Arduino Mega 2560](https://www.aliexpress.com/item/32837393855.html)
-* [LED Bar](https://www.aliexpress.com/item/1005007198230035.html) (Note: You must solder a 220Ω or 330Ω resistor on EVERY positive terminal for it to function. Pre wired ones basically dont exist, there are [some though](https://www.aliexpress.com/item/1005007804923693.html)
+* [LED Bar](https://www.aliexpress.com/item/1005007198230035.html) (Note: You must solder a 220Ω or 330Ω resistor on EVERY positive terminal for it to function. Pre wired ones basically dont exist, [there are some](https://www.aliexpress.com/item/1005007804923693.html) however they require seperate packages and work a bit differently)
 * [TM1637 4 bit display](https://www.aliexpress.com/item/1005009269502486.html)
 * 2x [Rotary Encoders](https://www.aliexpress.com/item/1005009578504178.html)
 * [Microphone switch](https://www.aliexpress.com/item/1005009742731611.html)
