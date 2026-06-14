@@ -61,7 +61,7 @@ long mazeLastLeftPos  = 0;
 long mazeLastRightPos = 0;
 unsigned long mazeLastLeftMoveTime  = 0;
 unsigned long mazeLastRightMoveTime = 0;
-const unsigned long mazeMoveDelay = 80;
+const unsigned long mazeMoveDelay = 200;  // ms lockout after a move — prevents double-steps on cheap encoders
 
 // Wall arrays (true = wall exists on that side of this cell)
 bool wallRight[MAZE_H][MAZE_W];
@@ -156,17 +156,31 @@ void setupMaze3() {
   clearWalls();
   buildOuterWalls();
 
-  addVerticalWall(0,1); addVerticalWall(1,1); addVerticalWall(4,1);
-  addVerticalWall(0,2); addVerticalWall(4,2);
-  addVerticalWall(1,3); addVerticalWall(3,3); addVerticalWall(4,3);
-  addVerticalWall(0,4); addVerticalWall(4,4);
+  addVerticalWall(0,1);
+  addVerticalWall(1,1);
+  addVerticalWall(4,1);
+  addVerticalWall(0,2);
+  addVerticalWall(4,2);
+  addVerticalWall(1,3);
+  addVerticalWall(3,3);
+  addVerticalWall(4,3);
+  addVerticalWall(0,4);
+  addVerticalWall(4,4);
   addVerticalWall(1,5);
 
-  addHorizontalWall(1,0); addHorizontalWall(3,0); addHorizontalWall(4,0);
-  addHorizontalWall(0,1); addHorizontalWall(2,1); addHorizontalWall(3,1);
+  addHorizontalWall(1,0);
+  addHorizontalWall(3,0);
+  addHorizontalWall(4,0);
+  addHorizontalWall(0,1);
+  addHorizontalWall(2,1);
+  addHorizontalWall(3,1);
   addHorizontalWall(4,2);
-  addHorizontalWall(1,3); addHorizontalWall(2,3); addHorizontalWall(5,3);
-  addHorizontalWall(1,4); addHorizontalWall(3,4); addHorizontalWall(4,4);
+  addHorizontalWall(1,3);
+  addHorizontalWall(2,3);
+  addHorizontalWall(5,3);
+  addHorizontalWall(1,4);
+  addHorizontalWall(3,4);
+  addHorizontalWall(4,4);
 }
 
 void selectAndBuildMaze() {
@@ -179,7 +193,32 @@ void selectAndBuildMaze() {
   }
 }
 
-// ── BFS reachability check ─────────────────────────────────────────────────
+// ── Orientation test ───────────────────────────────────────────────────────
+// Set to true to light a single amber pixel at game position (0,0) — the
+// top-left cell of the play area — instead of running the maze.
+// The pixel sits one in from the top-left corner of the white border.
+// If it appears somewhere other than top-left, adjust your matrix mounting.
+
+const bool MATRIX_ORIENTATION_TEST = false;
+
+void runOrientationTest() {
+  matrix.begin();
+  for (int i = 0; i < 64; i++) matrix.setPixelColor(i, COLOR_BLACK);
+
+  // White border so you can see the full extent of the matrix
+  for (int x = 0; x < 8; x++) {
+    matrix.setPixelColor(x,      COLOR_WHITE);
+    matrix.setPixelColor(56 + x, COLOR_WHITE);
+  }
+  for (int y = 0; y < 8; y++) {
+    matrix.setPixelColor(y * 8,     COLOR_WHITE);
+    matrix.setPixelColor(y * 8 + 7, COLOR_WHITE);
+  }
+
+  // Amber pixel at game cell (0,0) = matrix index (1,1)
+  matrix.setPixelColor(1 * 8 + 1, 0xFFAA00);
+  matrix.show();
+}
 
 bool isMazePositionReachable(int sx, int sy, int tx, int ty) {
   bool visited[MAZE_H][MAZE_W] = {};
@@ -266,6 +305,7 @@ bool moveUp() {
 // ── Setup / Update ─────────────────────────────────────────────────────────
 
 void setupMazeModule() {
+  if (MATRIX_ORIENTATION_TEST) { runOrientationTest(); return; }
   matrix.begin();
   matrix.show();
   mazeSolved         = false;
@@ -301,15 +341,15 @@ void updateMazeModule() {
   if (abs(changeLeft) >= 4 && now - mazeLastLeftMoveTime > mazeMoveDelay) {
     changed = (changeLeft > 0) ? moveRight() : moveLeft();
     mazeLastLeftPos = currLeft;
-    if (changed) mazeLastLeftMoveTime = now;
+    mazeLastLeftMoveTime = now;  // always consume — prevents wall hit re-triggering
   }
 
   long currRight   = encRight.read();
   long changeRight = currRight - mazeLastRightPos;
   if (abs(changeRight) >= 4 && now - mazeLastRightMoveTime > mazeMoveDelay) {
-    changed = (changeRight > 0) ? moveUp() : moveDown();
+    changed = (changeRight > 0) ? moveDown() : moveUp();
     mazeLastRightPos = currRight;
-    if (changed) mazeLastRightMoveTime = now;
+    mazeLastRightMoveTime = now;  // always consume
   }
 
   if (changed) {

@@ -333,8 +333,8 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
 
       <div class="page" id="page-emrg">
         <div class="page-header">
-          <div class="page-eyebrow" style="color:var(--red)">⚠ EMERGENCY FAULT ISOLATION</div>
-          <div class="page-title" style="color:var(--red)">CORE RUNAWAY</div>
+          <div class="page-eyebrow">§ 04 // EMERGENCY FAULT ISOLATION</div>
+          <div class="page-title"><span>CORE</span> RUNAWAY</div>
         </div>
         <div class="warn">
           <div class="warn-title">CRITICAL RISK ALERT</div>
@@ -378,8 +378,8 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
             <p style="font-size:10px; color:var(--text-muted)">*CW = Clockwise rotation · CCW = Counter-Clockwise rotation · Left/Right encoder dials.</p>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">1.2</span><span class="card-title">Terminal Node Severance</span><span class="card-chevron">›</span></div>
+        <div class="card open">
+          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">1.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
           <div class="card-body">
             <p>Extract the **last numeric digit** of the serial sequence tracking (ABCD-123<u>X</u>) and direct your field asset to pull the respective connection link line:</p>
             <table class="tbl">
@@ -417,83 +417,85 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
 
             <div class="maze-display">
               <div class="maze-svg-wrap" id="maze-0">
-                <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="40" y="40" width="180" height="180" fill="#0B0B0E"/>
+                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
                   <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="70" y1="40" x2="70" y2="220"/><line x1="100" y1="40" x2="100" y2="220"/><line x1="130" y1="40" x2="130" y2="220"/><line x1="160" y1="40" x2="160" y2="220"/><line x1="190" y1="40" x2="190" y2="220"/>
-                    <line x1="40" y1="70" x2="220" y2="70"/><line x1="40" y1="100" x2="220" y2="100"/><line x1="40" y1="130" x2="220" y2="130"/><line x1="40" y1="160" x2="220" y2="160"/><line x1="40" y1="190" x2="220" y2="190"/>
+                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
+                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
                   </g>
                   <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="70" y1="70" x2="70" y2="160"/><line x1="100" y1="190" x2="100" y2="220"/><line x1="130" y1="40" x2="130" y2="120"/><line x1="130" y1="150" x2="130" y2="180"/><line x1="160" y1="120" x2="160" y2="150"/><line x1="160" y1="180" x2="160" y2="210"/><line x1="190" y1="150" x2="190" y2="180"/>
-                    <line x1="70" y1="70" x2="100" y2="70"/><line x1="160" y1="70" x2="220" y2="70"/><line x1="100" y1="100" x2="190" y2="100"/><line x1="70" y1="130" x2="100" y2="130"/><line x1="160" y1="130" x2="190" y2="130"/><line x1="70" y1="160" x2="190" y2="160"/><line x1="70" y1="190" x2="100" y2="190"/><line x1="160" y1="190" x2="190" y2="190"/>
+                    <line x1="60" y1="60" x2="60" y2="150"/><line x1="90" y1="180" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="150"/><line x1="120" y1="150" x2="120" y2="180"/><line x1="150" y1="120" x2="150" y2="150"/><line x1="150" y1="180" x2="150" y2="210"/><line x1="180" y1="150" x2="180" y2="180"/>
+                    <line x1="60" y1="60" x2="90" y2="60"/><line x1="150" y1="60" x2="210" y2="60"/><line x1="90" y1="90" x2="180" y2="90"/><line x1="60" y1="120" x2="90" y2="120"/><line x1="150" y1="120" x2="180" y2="120"/><line x1="60" y1="150" x2="180" y2="150"/><line x1="60" y1="180" x2="90" y2="180"/><line x1="150" y1="180" x2="180" y2="180"/>
                   </g>
-                  <rect x="40" y="40" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
                 </svg>
               </div>
 
               <div class="maze-svg-wrap" id="maze-1">
-                <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="40" y="40" width="180" height="180" fill="#0B0B0E"/>
+                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
                   <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="70" y1="40" x2="70" y2="220"/><line x1="100" y1="40" x2="100" y2="220"/><line x1="130" y1="40" x2="130" y2="220"/><line x1="160" y1="40" x2="160" y2="220"/><line x1="190" y1="40" x2="190" y2="220"/>
-                    <line x1="40" y1="70" x2="220" y2="70"/><line x1="40" y1="100" x2="220" y2="100"/><line x1="40" y1="130" x2="220" y2="130"/><line x1="40" y1="160" x2="220" y2="160"/><line x1="40" y1="190" x2="220" y2="190"/>
+                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
+                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
                   </g>
                   <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="70" y1="40" x2="70" y2="70"/><line x1="190" y1="40" x2="190" y2="70"/><line x1="70" y1="70" x2="70" y2="100"/><line x1="100" y1="70" x2="100" y2="100"/><line x1="190" y1="70" x2="190" y2="100"/><line x1="70" y1="100" x2="70" y2="130"/><line x1="100" y1="100" x2="100" y2="130"/><line x1="160" y1="100" x2="160" y2="130"/><line x1="190" y1="100" x2="190" y2="130"/><line x1="70" y1="130" x2="70" y2="160"/><line x1="190" y1="130" x2="190" y2="160"/><line x1="70" y1="160" x2="70" y2="190"/><line x1="130" y1="160" x2="130" y2="190"/><line x1="190" y1="160" x2="190" y2="190"/><line x1="130" y1="190" x2="130" y2="220"/>
-                    <line x1="100" y1="70" x2="130" y2="70"/><line x1="130" y1="70" x2="160" y2="70"/><line x1="130" y1="100" x2="160" y2="100"/><line x1="160" y1="100" x2="190" y2="100"/><line x1="100" y1="130" x2="130" y2="130"/><line x1="130" y1="130" x2="160" y2="130"/><line x1="70" y1="160" x2="100" y2="160"/><line x1="130" y1="160" x2="160" y2="160"/><line x1="100" y1="190" x2="130" y2="190"/><line x1="160" y1="190" x2="190" y2="190"/>
+                    <line x1="60" y1="30" x2="60" y2="60"/><line x1="180" y1="30" x2="180" y2="60"/><line x1="60" y1="60" x2="60" y2="90"/><line x1="90" y1="60" x2="90" y2="90"/><line x1="180" y1="60" x2="180" y2="90"/><line x1="60" y1="90" x2="60" y2="120"/><line x1="90" y1="90" x2="90" y2="120"/><line x1="150" y1="90" x2="150" y2="120"/><line x1="180" y1="90" x2="180" y2="120"/><line x1="60" y1="120" x2="60" y2="150"/><line x1="180" y1="120" x2="180" y2="150"/><line x1="60" y1="150" x2="60" y2="180"/><line x1="120" y1="150" x2="120" y2="180"/><line x1="180" y1="150" x2="180" y2="180"/><line x1="120" y1="180" x2="120" y2="210"/>
+                    <line x1="90" y1="60" x2="120" y2="60"/><line x1="120" y1="60" x2="150" y2="60"/><line x1="120" y1="90" x2="150" y2="90"/><line x1="150" y1="90" x2="180" y2="90"/><line x1="90" y1="120" x2="120" y2="120"/><line x1="120" y1="120" x2="150" y2="120"/><line x1="60" y1="150" x2="90" y2="150"/><line x1="120" y1="150" x2="150" y2="150"/><line x1="90" y1="180" x2="120" y2="180"/><line x1="150" y1="180" x2="180" y2="180"/>
                   </g>
-                  <rect x="40" y="40" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
                 </svg>
               </div>
 
               <div class="maze-svg-wrap" id="maze-2">
-                <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="40" y="40" width="180" height="180" fill="#0B0B0E"/>
+                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
                   <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="70" y1="40" x2="70" y2="220"/><line x1="100" y1="40" x2="100" y2="220"/><line x1="130" y1="40" x2="130" y2="220"/><line x1="160" y1="40" x2="160" y2="220"/><line x1="190" y1="40" x2="190" y2="220"/>
-                    <line x1="40" y1="70" x2="220" y2="70"/><line x1="40" y1="100" x2="220" y2="100"/><line x1="40" y1="130" x2="220" y2="130"/><line x1="40" y1="160" x2="220" y2="160"/><line x1="40" y1="190" x2="220" y2="190"/>
+                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
+                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
                   </g>
                   <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="70" y1="40" x2="70" y2="70"/><line x1="130" y1="40" x2="130" y2="70"/><line x1="160" y1="40" x2="160" y2="70"/><line x1="130" y1="70" x2="130" y2="100"/><line x1="70" y1="100" x2="70" y2="130"/><line x1="100" y1="100" x2="100" y2="130"/><line x1="180" y1="100" x2="180" y2="120"/><line x1="70" y1="130" x2="70" y2="160"/><line x1="100" y1="130" x2="100" y2="160"/><line x1="160" y1="130" x2="160" y2="160"/><line x1="70" y1="160" x2="70" y2="190"/><line x1="160" y1="160" x2="160" y2="190"/><line x1="100" y1="190" x2="100" y2="210"/><line x1="190" y1="190" x2="190" y2="210"/>
-                    <line x1="70" y1="70" x2="100" y2="70"/><line x1="160" y1="70" x2="190" y2="70"/><line x1="130" y1="100" x2="160" y2="100"/><line x1="120" y1="120" x2="160" y2="120"/><line x1="160" y1="120" x2="190" y2="120"/><line x1="100" y1="150" x2="130" y2="150"/><line x1="160" y1="150" x2="190" y2="150"/><line x1="190" y1="150" x2="220" y2="150"/><line x1="40" y1="180" x2="70" y2="180"/><line x1="100" y1="180" x2="130" y2="180"/>
+                    <line x1="60" y1="30" x2="60" y2="60"/><line x1="120" y1="30" x2="120" y2="60"/><line x1="150" y1="30" x2="150" y2="60"/><line x1="120" y1="60" x2="120" y2="90"/><line x1="60" y1="90" x2="60" y2="120"/><line x1="90" y1="90" x2="90" y2="120"/><line x1="180" y1="90" x2="180" y2="120"/><line x1="60" y1="120" x2="60" y2="150"/><line x1="90" y1="120" x2="90" y2="150"/><line x1="150" y1="120" x2="150" y2="150"/><line x1="60" y1="150" x2="60" y2="180"/><line x1="150" y1="150" x2="150" y2="180"/><line x1="90" y1="180" x2="90" y2="210"/><line x1="180" y1="180" x2="180" y2="210"/>
+                    <line x1="60" y1="60" x2="90" y2="60"/><line x1="150" y1="60" x2="180" y2="60"/><line x1="120" y1="90" x2="150" y2="90"/><line x1="120" y1="120" x2="150" y2="120"/><line x1="150" y1="120" x2="180" y2="120"/><line x1="90" y1="150" x2="120" y2="150"/><line x1="150" y1="150" x2="180" y2="150"/><line x1="180" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="60" y2="180"/><line x1="90" y1="180" x2="120" y2="180"/>
                   </g>
-                  <rect x="40" y="40" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
                 </svg>
               </div>
 
               <div class="maze-svg-wrap" id="maze-3">
-                <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="40" y="40" width="180" height="180" fill="#0B0B0E"/>
+                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
                   <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="70" y1="40" x2="70" y2="220"/><line x1="100" y1="40" x2="100" y2="220"/><line x1="130" y1="40" x2="130" y2="220"/><line x1="160" y1="40" x2="160" y2="220"/><line x1="190" y1="40" x2="190" y2="220"/>
-                    <line x1="40" y1="70" x2="220" y2="70"/><line x1="40" y1="100" x2="220" y2="100"/><line x1="40" y1="130" x2="220" y2="130"/><line x1="40" y1="160" x2="220" y2="160"/><line x1="40" y1="190" x2="220" y2="190"/>
+                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
+                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
                   </g>
                   <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="70" y1="70" x2="70" y2="100"/>
-                    <line x1="100" y1="70" x2="100" y2="100"/>
-                    <line x1="190" y1="70" x2="190" y2="100"/>
-                    <line x1="70" y1="100" x2="70" y2="130"/>
-                    <line x1="190" y1="100" x2="190" y2="130"/>
-                    <line x1="100" y1="130" x2="100" y2="160"/>
-                    <line x1="160" y1="130" x2="160" y2="160"/>
-                    <line x1="190" y1="130" x2="190" y2="160"/>
-                    <line x1="70" y1="160" x2="70" y2="190"/>
-                    <line x1="100" y1="190" x2="100" y2="220"/>
+                    <line x1="60" y1="60" x2="60" y2="90"/>
+                    <line x1="90" y1="60" x2="90" y2="90"/>
+                    <line x1="180" y1="60" x2="180" y2="90"/>
+                    <line x1="60" y1="90" x2="60" y2="120"/>
+                    <line x1="180" y1="90" x2="180" y2="120"/>
+                    <line x1="90" y1="120" x2="90" y2="150"/>
+                    <line x1="150" y1="120" x2="150" y2="150"/>
+                    <line x1="180" y1="120" x2="180" y2="150"/>
+                    <line x1="60" y1="150" x2="60" y2="180"/>
+                    <line x1="180" y1="150" x2="180" y2="180"/>
+                    <line x1="90" y1="180" x2="90" y2="210"/>
 
-                    <line x1="70" y1="70" x2="100" y2="70"/>
-                    <line x1="130" y1="70" x2="160" y2="70"/>
-                    <line x1="160" y1="70" x2="190" y2="70"/>
-                    <line x1="40" y1="100" x2="70" y2="100"/>
-                    <line x1="100" y1="100" x2="130" y2="100"/>
-                    <line x1="130" y1="100" x2="160" y2="100"/>
-                    <line x1="160" y1="130" x2="190" y2="130"/>
-                    <line x1="70" y1="160" x2="100" y2="160"/>
-                    <line x1="100" y1="160" x2="130" y2="160"/>
-                    <line x1="190" y1="160" x2="220" y2="160"/>
-                    <line x1="70" y1="190" x2="100" y2="190"/>
-                    <line x1="130" y1="190" x2="160" y2="190"/>
+                    <line x1="60" y1="60" x2="90" y2="60"/>
+                    <line x1="120" y1="60" x2="150" y2="60"/>
+                    <line x1="150" y1="60" x2="180" y2="60"/>
+                    <line x1="30" y1="90" x2="60" y2="90"/>
+                    <line x1="90" y1="90" x2="120" y2="90"/>
+                    <line x1="120" y1="90" x2="150" y2="90"/>
+                    <line x1="150" y1="120" x2="180" y2="120"/>
+                    <line x1="60" y1="150" x2="90" y2="150"/>
+                    <line x1="90" y1="150" x2="120" y2="150"/>
+                    <line x1="180" y1="150" x2="210" y2="150"/>
+                    <line x1="60" y1="180" x2="90" y2="180"/>
+                    <line x1="120" y1="180" x2="150" y2="180"/>
+                    <line x1="150" y1="180" x2="180" y2="180"/>
                   </g>
-                  <rect x="40" y="40" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
                 </svg>
               </div>
               <div class="maze-prompt" id="maze-none-prompt">← SELECT VALID REGISTRATION ROW TO GENERATE DATA</div>
@@ -505,7 +507,7 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
             </div>
           </div>
         </div>
-        <div class="card">
+        <div class="card open">
           <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">2.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
           <div class="card-body">
             <p>Request the **first numeric identifier** string value (<u>X</u>BCD-1234). Direct hardware severance along the designated lane:</p>
@@ -541,7 +543,7 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
             <p><em>Inputs must contain zero hesitation gaps. A single mismatch forces module data flushing.</em></p>
           </div>
         </div>
-        <div class="card">
+        <div class="card open">
           <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">3.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
           <div class="card-body">
             <p>Identify the **final character letter** within the hardware string notation (ABC<u>X</u>-1234) and sever the respective current tracing trace line:</p>
@@ -571,12 +573,12 @@ p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; 
         </div>
         <div class="card open-default">
           <div class="card-body">
-            <p>Instruct your Operator to observe the countdown display window intently and wait. Strike the faceplate red button input **only when a '1' digit occupies any position on the display.**</p>
+            <p>Instruct your Operator to observe the countdown display window intently and wait. Strike the faceplate red button input **strictly when a '1' digit actively matches any position within the timer array.**</p>
             <div class="big-one">1</div>
             <p>Executing an input action when zero '1' characters match the clock layout establishes an instant liability penalty, prompting immediate termination protocol processing.</p>
             <div class="info">
               <div class="info-title">POST-DISARM DISCHARGE SEQUENCE</div>
-              <p>Once bypassed, look back to the **Shift Schedule (§00)** parameters to close down localized field lines and cleanly log off out of your shift structure.</p>
+              <p>Once bypassed, look back to the **Shift Schedule (§00)** parameters to safely isolate localized field lines and cleanly terminate your field clock session.</p>
             </div>
           </div>
         </div>
