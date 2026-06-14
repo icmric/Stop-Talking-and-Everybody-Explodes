@@ -24,6 +24,13 @@
     D22      8×8 WS2812B matrix (NeoPixel data)
     D31      Key switch
     D35,37,39,41,43,45,47,49,51,53  LED bar (10 LEDs)
+    
+    HARDWARE WIRE CUTTING INTERFACE (Ground-to-Pin Arrays):
+    A7       Color 0: RED
+    A6       Color 1: BLUE
+    A5       Color 2: YELLOW
+    A4       Color 3: GREEN
+    A3       Color 4: BLACK
 */
 
 #include <Wire.h>
@@ -56,13 +63,13 @@ enum GameState {
 // ── Debug / bypass flags ───────────────────────────────────────────────────
 // Set to true to skip a module during development/testing.
 
-const bool BYPASS_FREQUENCY_MODULE  = true;
+const bool BYPASS_FREQUENCY_MODULE  = false;
 const bool BYPASS_MAZE_MODULE       = false;
-const bool BYPASS_CORE_MODULE       = true;
+const bool BYPASS_CORE_MODULE       = false;
 const bool BYPASS_BUTTON_COMBO      = false;
 
 // When true, skips the key-switch requirement and starts immediately on boot.
-const bool AUTO_START_GAME = true;
+const bool AUTO_START_GAME = false;
 
 // ── Pin definitions ────────────────────────────────────────────────────────
 
@@ -94,12 +101,12 @@ String bombSerialNumber    = "";
 
 // ── Timer ──────────────────────────────────────────────────────────────────
 
-const int           TIMER_START_MINUTES  = 5;
+const int          TIMER_START_MINUTES  = 5;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_START_MINUTES * 60UL * 1000UL;
 
-int  remainingSeconds = TIMER_START_MINUTES * 60;
+int          remainingSeconds = TIMER_START_MINUTES * 60;
 bool timerRunning     = false;
-bool timerFinished    = false;
+bool timerFinished     = false;
 unsigned long timerLastTick = 0;
 
 // currentDigits mirrors the live display (MM:SS as four single digits)
@@ -117,10 +124,10 @@ unsigned long buzzerLastBeepTime = 0;
 const unsigned long BUZZER_INTERVAL_START = 5000;
 const unsigned long BUZZER_INTERVAL_END   = 90;
 const unsigned long BUZZER_BEEP_DURATION  = 80;
-const int           BUZZER_FREQ_START     = 800;
-const int           BUZZER_FREQ_END       = 2000;
-const float         BUZZER_INTERVAL_CURVE = 3.5f;
-const float         BUZZER_PITCH_CURVE    = 2.8f;
+const int          BUZZER_FREQ_START     = 800;
+const int          BUZZER_FREQ_END       = 2000;
+const float        BUZZER_INTERVAL_CURVE = 3.5f;
+const float        BUZZER_PITCH_CURVE    = 2.8f;
 
 // ── Key switch debounce ────────────────────────────────────────────────────
 
@@ -129,11 +136,15 @@ bool keyLastState       = false;
 unsigned long keyLastChangeTime = 0;
 const unsigned long KEY_DEBOUNCE_DELAY = 50;
 
-// ── Module transition tracking (for probabilistic Core trigger) ────────────
+// ── Wire-Cutting Tracking Hardware Variables ───────────────────────────────
 
-bool lastFrequencyModuleSolved = false;
-bool lastMazeSolved            = false;
-bool lastButtonComboSolved     = false;
+bool frequencyWirePulled   = false;
+bool mazeWirePulled        = false;
+bool buttonComboWirePulled = false;
+
+bool lastFrequencyWirePulled = false;
+bool lastMazeWirePulled      = false;
+bool lastButtonComboWirePulled = false;
 
 // ── End-sequence guard ─────────────────────────────────────────────────────
 
@@ -161,10 +172,10 @@ void setLedLevel(int level) {
 // =============================================================================
 
 bool allModulesSolved() {
-  if (!BYPASS_FREQUENCY_MODULE && !frequencyModuleSolved) return false;
-  if (!BYPASS_MAZE_MODULE       && !mazeSolved)           return false;
+  if (!BYPASS_FREQUENCY_MODULE && !(frequencyModuleSolved && frequencyWirePulled)) return false;
+  if (!BYPASS_MAZE_MODULE       && !(mazeSolved && mazeWirePulled)) return false;
   if (!BYPASS_CORE_MODULE       && !coreSolved)           return false;
-  if (!BYPASS_BUTTON_COMBO      && !buttonComboSolved)    return false;
+  if (!BYPASS_BUTTON_COMBO      && !(buttonComboSolved && buttonComboWirePulled)) return false;
   return true;
 }
 
@@ -179,10 +190,10 @@ int getTotalModuleCount() {
 
 int getSolvedModuleCount() {
   int n = 0;
-  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) n++;
-  if (!BYPASS_MAZE_MODULE       && mazeSolved)           n++;
+  if (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved && frequencyWirePulled) n++;
+  if (!BYPASS_MAZE_MODULE       && mazeSolved && mazeWirePulled) n++;
   if (!BYPASS_CORE_MODULE       && coreSolved)           n++;
-  if (!BYPASS_BUTTON_COMBO      && buttonComboSolved)    n++;
+  if (!BYPASS_BUTTON_COMBO      && buttonComboSolved && buttonComboWirePulled) n++;
   return n;
 }
 
@@ -297,7 +308,7 @@ void updateCountdown() {
     if (remainingSeconds <= 0) {
       remainingSeconds = 0;
       timerRunning     = false;
-      timerFinished    = true;
+      timerFinished     = true;
       stopBuzzer();
       if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)
         currentGameState = STATE_FAILED;
@@ -402,8 +413,8 @@ void playDetonatedSequence(bool timedOut) {
   }
 
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print(timedOut ? "DETONATED"    : "GAME FAILED");
-  lcd.setCursor(0, 1); lcd.print(timedOut ? "TIMER EXPIRED": "KEY TURNED OFF");
+  lcd.setCursor(0, 0); lcd.print(timedOut ? "DETONATED"     : "GAME FAILED");
+  lcd.setCursor(0, 1); lcd.print(timedOut ? "TIMER EXPIRED": "WIRE FAULT / KEY OFF");
 }
 
 // =============================================================================
@@ -433,9 +444,13 @@ void resetGameModules() {
   buttonComboSolved     = false;
   endSequencePlayed     = false;
 
-  lastFrequencyModuleSolved = false;
-  lastMazeSolved            = false;
-  lastButtonComboSolved     = false;
+  frequencyWirePulled   = false;
+  mazeWirePulled        = false;
+  buttonComboWirePulled = false;
+
+  lastFrequencyWirePulled = false;
+  lastMazeWirePulled      = false;
+  lastButtonComboWirePulled = false;
 }
 
 void startGame() {
@@ -452,7 +467,7 @@ void startGame() {
 void handleKeySwitch() {
   if (!readKeySwitchDebounced()) return;
 
-  if (keyCurrentState == HIGH) {
+  if (keyCurrentState == LOW) {
     // Key turned ON
     if (currentGameState == STATE_IDLE) startGame();
 
@@ -480,22 +495,99 @@ void handleKeySwitch() {
 }
 
 // =============================================================================
+// HARDWARE WIRE PROCESSING
+// =============================================================================
+
+// Helper to determine which physical pin matches the active target calculation
+int getModuleWirePin(int moduleNum) {
+  int color = -1;
+  if (moduleNum == 1)       color = getMod1Color(getSerialDigit4());
+  else if (moduleNum == 2)  color = getMod2Color(getSerialDigit1());
+  else if (moduleNum == 3)  color = getMod3Color(getSerialLetter4());
+  
+  // Color-to-pin architecture: 0->A7, 1->A6, 2->A5, 3->A4, 4->A3
+  if (color >= 0 && color <= 4) {
+    return A7 - color;
+  }
+  return -1;
+}
+
+void updateWireCutting() {
+  if (currentGameState != STATE_RUNNING && currentGameState != STATE_WON) return;
+
+  int mod1TargetPin = getModuleWirePin(1);
+  int mod2TargetPin = getModuleWirePin(2);
+  int mod3TargetPin = getModuleWirePin(3);
+
+  // Audit all 5 pin paths (A3 through A7). HIGH means disconnected/pulled out.
+  for (int color = 0; color <= 4; color++) {
+    int currentPin = A7 - color;
+    
+    if (digitalRead(currentPin) == HIGH) {
+      bool isActionValid = false;
+
+      // Case A: Correctly terminating Module 1 wire
+      if (currentPin == mod1TargetPin && (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) && !frequencyWirePulled) {
+        frequencyWirePulled = true;
+        isActionValid = true;
+        tone(BUZZER_PIN, 1100, 150);
+      }
+      // Case B: Correctly terminating Module 2 wire
+      else if (currentPin == mod2TargetPin && (!BYPASS_MAZE_MODULE && mazeSolved) && !mazeWirePulled) {
+        mazeWirePulled = true;
+        isActionValid = true;
+        tone(BUZZER_PIN, 1100, 150);
+      }
+      // Case C: Correctly terminating Module 3 wire
+      else if (currentPin == mod3TargetPin && (!BYPASS_BUTTON_COMBO && buttonComboSolved) && !buttonComboWirePulled) {
+        buttonComboWirePulled = true;
+        isActionValid = true;
+        tone(BUZZER_PIN, 1100, 150);
+      }
+      // Case D: Wire was already pulled legally in an earlier sweep
+      else if (currentPin == mod1TargetPin && frequencyWirePulled) {
+        isActionValid = true;
+      }
+      else if (currentPin == mod2TargetPin && mazeWirePulled) {
+        isActionValid = true;
+      }
+      else if (currentPin == mod3TargetPin && buttonComboWirePulled) {
+        isActionValid = true;
+      }
+
+      // Detonation Trigger: Unauthorised or out-of-order loop intervention
+      if (!isActionValid) {
+        currentGameState = STATE_FAILED;
+        timerRunning     = false;
+        stopBuzzer();
+        if (!endSequencePlayed) {
+          playDetonatedSequence(false);
+          endSequencePlayed = true;
+        }
+        return;
+      }
+    }
+  }
+}
+
+// =============================================================================
 // GAME STATE MANAGEMENT
 // =============================================================================
 
 void checkModuleTransitionsAndTriggerCore() {
   if (coreTriggered || coreSolved) return;
 
+  // Thermal core spikes trigger strictly after hardware termination verification
   bool anyJustCompleted =
-    (!lastFrequencyModuleSolved && frequencyModuleSolved) ||
-    (!lastMazeSolved            && mazeSolved)            ||
-    (!lastButtonComboSolved     && buttonComboSolved);
+    (!lastFrequencyWirePulled && frequencyWirePulled && !BYPASS_FREQUENCY_MODULE) ||
+    (!lastMazeWirePulled      && mazeWirePulled      && !BYPASS_MAZE_MODULE)      ||
+    (!lastButtonComboWirePulled && buttonComboWirePulled && !BYPASS_BUTTON_COMBO);
 
   if (anyJustCompleted && random(100) < 50) triggerCoreEvent();
 
-  lastFrequencyModuleSolved = frequencyModuleSolved;
-  lastMazeSolved            = mazeSolved;
-  lastButtonComboSolved     = buttonComboSolved;
+  lastFrequencyWirePulled   = frequencyWirePulled;
+  lastMazeWirePulled        = mazeWirePulled;
+  lastButtonComboWirePulled = buttonComboWirePulled;
 }
 
 void updateGameState() {
@@ -514,7 +606,6 @@ void setup() {
   Wire.begin();
   delay(500);
 
-  // Hopefully stops the buzzing noise
   stopBuzzer();
 
   matrix.begin();
@@ -527,11 +618,18 @@ void setup() {
   initializeLedBar();
 
   pinMode(BUZZER_PIN,     OUTPUT);
-  pinMode(KEY_SWITCH_PIN, INPUT);
+  pinMode(KEY_SWITCH_PIN, INPUT_PULLUP);
   pinMode(ENC_LEFT_A,  INPUT_PULLUP);
   pinMode(ENC_LEFT_B,  INPUT_PULLUP);
   pinMode(ENC_RIGHT_A, INPUT_PULLUP);
   pinMode(ENC_RIGHT_B, INPUT_PULLUP);
+  
+  // Initialize physical wire ports as Pullup loops
+  pinMode(A3, INPUT_PULLUP);
+  pinMode(A4, INPUT_PULLUP);
+  pinMode(A5, INPUT_PULLUP);
+  pinMode(A6, INPUT_PULLUP);
+  pinMode(A7, INPUT_PULLUP);
   delay(50);  // Let pull-ups settle
 
   keyCurrentState = digitalRead(KEY_SWITCH_PIN);
@@ -547,18 +645,21 @@ void setup() {
   setupFrequencyModule();
   setupButtonComboModule();
   clearMazeDisplay();
-  // Maze full setup is deferred until Frequency + Core are complete
 
   // ── Apply bypass flags ─────────────────────────────────────────────────
 
   if (BYPASS_FREQUENCY_MODULE) {
-    frequencyModuleSolved = true;
-    activeEncoderModule   = MAZE_MODULE;
+    frequencyModuleSolved   = true;
+    frequencyWirePulled     = true;
+    lastFrequencyWirePulled = true;
+    activeEncoderModule     = MAZE_MODULE;
     Serial.println(F("BYPASS: Frequency module"));
   }
   if (BYPASS_MAZE_MODULE) {
-    mazeSolved    = true;
-    mazeSetupDone = true;
+    mazeSolved        = true;
+    mazeWirePulled    = true;
+    lastMazeWirePulled = true;
+    mazeSetupDone     = true;
     Serial.println(F("BYPASS: Maze module"));
   }
   if (BYPASS_CORE_MODULE) {
@@ -572,7 +673,9 @@ void setup() {
     Serial.println(F("BYPASS: Maze initialised immediately (Freq + Core bypassed)"));
   }
   if (BYPASS_BUTTON_COMBO) {
-    buttonComboSolved = true;
+    buttonComboSolved     = true;
+    buttonComboWirePulled = true;
+    lastButtonComboWirePulled = true;
     Serial.println(F("BYPASS: Button combo"));
   }
 
@@ -599,6 +702,9 @@ void loop() {
 
   if (currentGameState != STATE_RUNNING && currentGameState != STATE_WON) return;
 
+  // Process live hardware link infrastructure checks
+  updateWireCutting();
+
   checkModuleTransitionsAndTriggerCore();
   updateCoreModule();
 
@@ -607,6 +713,14 @@ void loop() {
 
   // All other modules pause while Core is active
   if (!coreTriggered || coreSolved) {
+    
+    // Explicit lockout override protection to prevent encoder bleed through
+    if (frequencyModuleSolved && !frequencyWirePulled) {
+      activeEncoderModule = FREQUENCY_MODULE;
+    } else if (frequencyModuleSolved && frequencyWirePulled && activeEncoderModule == FREQUENCY_MODULE) {
+      activeEncoderModule = MAZE_MODULE;
+    }
+
     if (activeEncoderModule == FREQUENCY_MODULE) {
       updateFrequencyModule();
     } else {

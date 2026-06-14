@@ -97,7 +97,7 @@ String generateSerialNumber() {
     int mod2 = getMod2Color(getSerialDigit1());
     int mod3 = getMod3Color(getSerialLetter4());
     // Keep updating the value dictating module 2 until it becomes valid
-    while (mod1 == mod2) {
+    while (mod1 == mod2 || mod1 == mod3) {
         // Regenerate the first digit if colides with module 1
         s[5] = (char)('0' + random(0, 10));
 

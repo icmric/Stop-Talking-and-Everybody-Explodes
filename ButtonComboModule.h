@@ -19,6 +19,7 @@
 #include "SerialNumber.h"
 
 extern void applyPenalty(const char* reason);
+extern const int BUZZER_PIN; // Inherited directly from the main ktane.ino sketch
 
 // ── Pins ───────────────────────────────────────────────────────────────────
 
@@ -51,13 +52,28 @@ void setupButtonComboModule() {
 // ── Input handler ──────────────────────────────────────────────────────────
 
 void handleButtonPress(int button) {
+  unsigned long now = millis();
+
   if (button == buttonSequence[buttonStepIndex]) {
     buttonStepIndex++;
-    if (buttonStepIndex >= 4) buttonComboSolved = true;
+    buttonStartTime = now;  // Refresh the 5-second window on a successful input
+    
+    if (buttonStepIndex >= 4) {
+      buttonComboSolved = true;
+      
+      // Unmistakable 3-note ascending validation chime (Safe to yank wire!)
+      tone(BUZZER_PIN, 600, 100);  delay(120);
+      tone(BUZZER_PIN, 850, 100);  delay(120);
+      tone(BUZZER_PIN, 1200, 250);
+    } else {
+      // Crisp individual button confirmation chirp
+      tone(BUZZER_PIN, 1000, 40);
+    }
   } else {
+    // Apply default 3-second penalty, buzz, and scrub combo progress back to empty
     applyPenalty("ButtonComboWrong");
     buttonStepIndex = 0;
-    buttonStartTime = millis();
+    buttonStartTime = now;
   }
 }
 
@@ -70,10 +86,13 @@ void updateButtonComboModule() {
 
   if (buttonStartTime == 0) buttonStartTime = millis();
 
-  // Reset sequence if player takes too long between presses
-  if (now - buttonStartTime > BUTTON_TIME_LIMIT) {
+  // Reset sequence back to empty if player halts mid-combo for more than 5 seconds
+  if (buttonStepIndex > 0 && (now - buttonStartTime > BUTTON_TIME_LIMIT)) {
     buttonStepIndex = 0;
     buttonStartTime = now;
+    
+    // Low-pitched grunt tone warning the player that their combo expired
+    tone(BUZZER_PIN, 250, 150);
   }
 
   static int  lastRedState   = HIGH;
