@@ -17,6 +17,7 @@
     D4, D5   Right encoder (CLK / DT)
     D6       Buzzer
     D7       Microphone sensor (Core module)
+    D12      Vibration motor (via transistor; active HIGH)
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
     D11      Green button (INPUT_PULLUP)
@@ -74,6 +75,7 @@ const bool AUTO_START_GAME = false;
 // ── Pin definitions ────────────────────────────────────────────────────────
 
 const int BUZZER_PIN = 6;
+const int VIBRATION_PIN = 12;
 const int KEY_SWITCH_PIN = 31;
 
 const int ENC_LEFT_A = 2, ENC_LEFT_B = 3;
@@ -117,9 +119,11 @@ int currentDigits[4] = {0, 5, 0, 0};
 bool serialNumberDisplayed = false;
 int  lastDisplayedGameState = -1;
 
-// ── Buzzer ─────────────────────────────────────────────────────────────────
+// ── Buzzer / vibration ─────────────────────────────────────────────────────
 
 unsigned long buzzerLastBeepTime = 0;
+unsigned long vibrationEndTime = 0;
+bool vibrationContinuous = false;
 
 const unsigned long BUZZER_INTERVAL_START = 5000;
 const unsigned long BUZZER_INTERVAL_END = 90;
@@ -128,6 +132,13 @@ const int BUZZER_FREQ_START = 800;
 const int BUZZER_FREQ_END = 2000;
 const float BUZZER_INTERVAL_CURVE = 3.5f;
 const float BUZZER_PITCH_CURVE = 2.8f;
+
+void startVibration(unsigned long durationMs = 0);
+void stopVibration();
+void updateVibration();
+void buzzerTone(int frequency, unsigned long duration);
+void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs);
+void stopBuzzer();
 
 // ── Key switch debounce ────────────────────────────────────────────────────
 
@@ -202,7 +213,7 @@ int getSolvedModuleCount() {
 // =============================================================================
 
 void applyPenalty(const char* /*reason*/) {
-  tone(BUZZER_PIN, 1000, 200);
+  buzzerTone(1000, 200);
   if (remainingSeconds > 3) {
     remainingSeconds -= 3;
   } else {
@@ -217,16 +228,53 @@ void applyPenalty(const char* /*reason*/) {
 // AUDIO
 // =============================================================================
 
+void startVibration(unsigned long durationMs) {
+  digitalWrite(VIBRATION_PIN, HIGH);
+  if (durationMs == 0) {
+    vibrationContinuous = true;
+    vibrationEndTime = 0;
+  } else {
+    vibrationContinuous = false;
+    vibrationEndTime = millis() + durationMs;
+  }
+}
+
+void stopVibration() {
+  digitalWrite(VIBRATION_PIN, LOW);
+  vibrationContinuous = false;
+  vibrationEndTime = 0;
+}
+
+void updateVibration() {
+  if (vibrationContinuous || vibrationEndTime == 0) return;
+  if (millis() >= vibrationEndTime) {
+    digitalWrite(VIBRATION_PIN, LOW);
+    vibrationEndTime = 0;
+  }
+}
+
+void buzzerTone(int frequency, unsigned long duration) {
+  tone(BUZZER_PIN, frequency, duration);
+  if (!vibrationContinuous) startVibration(duration);
+}
+
+void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs) {
+  buzzerTone(frequency, duration);
+  unsigned long end = millis() + waitMs;
+  while (millis() < end) updateVibration();
+  if (!vibrationContinuous) stopVibration();
+}
+
 void stopBuzzer() {
   noTone(BUZZER_PIN);
   digitalWrite(BUZZER_PIN, LOW);
+  if (!vibrationContinuous) stopVibration();
 }
 
 void playSuccessTone() {
   const int notes[] = {523, 659, 784, 1047, 784, 659, 523};
   for (int i = 0; i < 7; i++) {
-    tone(BUZZER_PIN, notes[i], 150);
-    delay(200);
+    buzzerToneWait(notes[i], 150, 200);
   }
   stopBuzzer();
 }
@@ -242,7 +290,7 @@ void updateBuzzer() {
   if (coreMessageShown && !coreSolved) {
     unsigned long cycleTime = millis() % 1000;
     if (cycleTime < 200 || (cycleTime >= 250 && cycleTime < 450) || (cycleTime >= 500 && cycleTime < 700))
-      tone(BUZZER_PIN, 1500, 200);
+      buzzerTone(1500, 200);
     else
       stopBuzzer();
     return;
@@ -260,7 +308,7 @@ void updateBuzzer() {
     unsigned long interval  = 100;
     int panicFreq = 1000 + (15 - remainingSeconds) * 50;
     if (now - buzzerLastBeepTime >= interval) {
-      tone(BUZZER_PIN, panicFreq, 50);
+      buzzerTone(panicFreq, 50);
       buzzerLastBeepTime = now;
     }
   } else {
@@ -271,7 +319,7 @@ void updateBuzzer() {
       (int)((BUZZER_FREQ_END - BUZZER_FREQ_START) * pow(t, BUZZER_PITCH_CURVE));
 
     if (now - buzzerLastBeepTime >= interval) {
-      tone(BUZZER_PIN, freq, BUZZER_BEEP_DURATION);
+      buzzerTone(freq, BUZZER_BEEP_DURATION);
       buzzerLastBeepTime = now;
     }
   }
@@ -388,29 +436,46 @@ void playDisarmedSequence() {
 }
 
 void playDetonatedSequence(bool timedOut) {
-  for (int f = 2000; f >= 200; f -= 90) { tone(BUZZER_PIN, f, 20); delay(10); }
+  startVibration();
+
+  for (int f = 2000; f >= 200; f -= 90) {
+    buzzerTone(f, 20);
+    unsigned long end = millis() + 10;
+    while (millis() < end) updateVibration();
+  }
   noTone(BUZZER_PIN);
 
   for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0xFF0000);
-  matrix.show(); delay(2500);
+  matrix.show();
+  unsigned long redEnd = millis() + 2500;
+  while (millis() < redEnd) updateVibration();
   for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x000000);
   matrix.show();
 
-  setLedLevel(10); delay(600);
+  setLedLevel(10);
+  unsigned long ledEnd = millis() + 600;
+  while (millis() < ledEnd) updateVibration();
 
   for (int i = 0; i < 15; i++) {
-    tone(BUZZER_PIN, (i % 2 == 0) ? 80 : 120, 40); delay(40);
+    buzzerToneWait((i % 2 == 0) ? 80 : 120, 40, 40);
   }
   noTone(BUZZER_PIN);
 
   for (int i = 0; i < 5; i++) {
     setLedLevel(10);
     for (int j = 0; j < 64; j++) matrix.setPixelColor(j, 0xFF0000);
-    matrix.show(); delay(60);
+    matrix.show();
+    unsigned long flashOn = millis() + 60;
+    while (millis() < flashOn) updateVibration();
     setLedLevel(0);
     for (int j = 0; j < 64; j++) matrix.setPixelColor(j, 0x000000);
-    matrix.show(); delay(60);
+    matrix.show();
+    unsigned long flashOff = millis() + 60;
+    while (millis() < flashOff) updateVibration();
   }
+
+  stopBuzzer();
+  stopVibration();
 
   lcd.clear();
   lcd.setCursor(0, 0); lcd.print(timedOut ? "DETONATED"     : "GAME FAILED");
@@ -530,19 +595,19 @@ void updateWireCutting() {
       if (currentPin == mod1TargetPin && (!BYPASS_FREQUENCY_MODULE && frequencyModuleSolved) && !frequencyWirePulled) {
         frequencyWirePulled = true;
         isActionValid = true;
-        tone(BUZZER_PIN, 1100, 150);
+        buzzerTone(1100, 150);
       }
       // Case B: Correctly terminating Module 2 wire
       else if (currentPin == mod2TargetPin && (!BYPASS_MAZE_MODULE && mazeSolved) && !mazeWirePulled) {
         mazeWirePulled = true;
         isActionValid = true;
-        tone(BUZZER_PIN, 1100, 150);
+        buzzerTone(1100, 150);
       }
       // Case C: Correctly terminating Module 3 wire
       else if (currentPin == mod3TargetPin && (!BYPASS_BUTTON_COMBO && buttonComboSolved) && !buttonComboWirePulled) {
         buttonComboWirePulled = true;
         isActionValid = true;
-        tone(BUZZER_PIN, 1100, 150);
+        buzzerTone(1100, 150);
       }
       // Case D: Wire was already pulled legally in an earlier sweep
       else if (currentPin == mod1TargetPin && frequencyWirePulled) {
@@ -607,6 +672,7 @@ void setup() {
   delay(500);
 
   stopBuzzer();
+  stopVibration();
 
   matrix.begin();
   matrix.setBrightness(25);  // ~10% — protects power supply
@@ -618,6 +684,7 @@ void setup() {
   initializeLedBar();
 
   pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(VIBRATION_PIN, OUTPUT);
   pinMode(KEY_SWITCH_PIN, INPUT_PULLUP);
   pinMode(ENC_LEFT_A, INPUT_PULLUP);
   pinMode(ENC_LEFT_B, INPUT_PULLUP);
@@ -694,6 +761,7 @@ void setup() {
 // =============================================================================
 
 void loop() {
+  updateVibration();
   handleKeySwitch();
   updateGameState();
   updateDisplayState();

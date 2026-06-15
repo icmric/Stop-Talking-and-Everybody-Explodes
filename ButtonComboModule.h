@@ -19,7 +19,8 @@
 #include "SerialNumber.h"
 
 extern void applyPenalty(const char* reason);
-extern const int BUZZER_PIN; // Inherited directly from the main ktane.ino sketch
+extern void buzzerTone(int frequency, unsigned long duration);
+extern void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs);
 
 // ── Pins ───────────────────────────────────────────────────────────────────
 
@@ -62,12 +63,12 @@ void handleButtonPress(int button) {
       buttonComboSolved = true;
       
       // Unmistakable 3-note ascending validation chime (Safe to yank wire!)
-      tone(BUZZER_PIN, 600, 100);  delay(120);
-      tone(BUZZER_PIN, 850, 100);  delay(120);
-      tone(BUZZER_PIN, 1200, 250);
+      buzzerToneWait(600, 100, 120);
+      buzzerToneWait(850, 100, 120);
+      buzzerTone(1200, 250);
     } else {
       // Crisp individual button confirmation chirp
-      tone(BUZZER_PIN, 1000, 40);
+      buzzerTone(1000, 40);
     }
   } else {
     // Apply default 3-second penalty, buzz, and scrub combo progress back to empty
@@ -92,7 +93,7 @@ void updateButtonComboModule() {
     buttonStartTime = now;
     
     // Low-pitched grunt tone warning the player that their combo expired
-    tone(BUZZER_PIN, 250, 150);
+    buzzerTone(250, 150);
   }
 
   static int  lastRedState   = HIGH;
