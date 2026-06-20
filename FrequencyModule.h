@@ -126,10 +126,6 @@ void updateFrequencyModule() {
         setLedLevel(0);  delay(150);
       }
       setLedLevel(10);
-
-      activeEncoderModule = (ActiveEncoderModule)1;  // Switch to MAZE_MODULE
-      setupMazeModule();
-      triggerCoreEvent();
     }
   }
 }

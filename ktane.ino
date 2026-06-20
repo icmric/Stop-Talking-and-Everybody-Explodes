@@ -20,7 +20,7 @@
     D12      Vibration motor (via transistor; active HIGH)
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
-    D11      Green button (INPUT_PULLUP)
+    D11      Blue button (INPUT_PULLUP)
     D20, D21 I2C bus — LCD 16×2 (0x27)
     D22      8×8 WS2812B matrix (NeoPixel data)
     D31      Key switch
@@ -60,14 +60,16 @@ enum GameState {
 #include "CoreModule.h"
 #include "MazeModule.h"
 #include "ButtonComboModule.h"
+#include "LockoutModule.h"
 
 // ── Debug / bypass flags ───────────────────────────────────────────────────
 // Set to true to skip a module during development/testing.
 
-const bool BYPASS_FREQUENCY_MODULE = true;
-const bool BYPASS_MAZE_MODULE = true;
+const bool BYPASS_FREQUENCY_MODULE = false;
+const bool BYPASS_MAZE_MODULE = false;
 const bool BYPASS_CORE_MODULE = true;
 const bool BYPASS_BUTTON_COMBO = false;
+const bool BYPASS_LOCKOUT_MODULE = false;
 
 // When true, skips the key-switch requirement and starts immediately on boot.
 const bool AUTO_START_GAME = false;
@@ -187,6 +189,7 @@ bool allModulesSolved() {
   if (!BYPASS_MAZE_MODULE && !(mazeSolved && mazeWirePulled)) return false;
   if (!BYPASS_CORE_MODULE && !coreSolved) return false;
   if (!BYPASS_BUTTON_COMBO && !(buttonComboSolved && buttonComboWirePulled)) return false;
+  if (!BYPASS_LOCKOUT_MODULE && !lockoutOverrideSolved) return false;
   return true;
 }
 
@@ -196,6 +199,7 @@ int getTotalModuleCount() {
   if (!BYPASS_MAZE_MODULE) n++;
   if (!BYPASS_CORE_MODULE) n++;
   if (!BYPASS_BUTTON_COMBO) n++;
+  if (!BYPASS_LOCKOUT_MODULE) n++;
   return n;
 }
 
@@ -205,6 +209,7 @@ int getSolvedModuleCount() {
   if (!BYPASS_MAZE_MODULE && mazeSolved && mazeWirePulled) n++;
   if (!BYPASS_CORE_MODULE && coreSolved) n++;
   if (!BYPASS_BUTTON_COMBO && buttonComboSolved && buttonComboWirePulled) n++;
+  if (!BYPASS_LOCKOUT_MODULE && lockoutOverrideSolved) n++;
   return n;
 }
 
@@ -513,7 +518,7 @@ void resetGameModules() {
 
   coreTriggered           = BYPASS_CORE_MODULE;
   coreSolved              = BYPASS_CORE_MODULE;
-
+  buttonComboSolved       = BYPASS_BUTTON_COMBO;
   buttonComboSolved       = BYPASS_BUTTON_COMBO;
   buttonComboWirePulled   = BYPASS_BUTTON_COMBO;
   lastButtonComboWirePulled = BYPASS_BUTTON_COMBO;
@@ -750,6 +755,7 @@ void loop() {
 
   // Button combo is always interactable, even during Core event
   updateButtonComboModule();
+  updateLockoutModule();
 
   // All other modules pause while Core is active
   if (!coreTriggered || coreSolved) {

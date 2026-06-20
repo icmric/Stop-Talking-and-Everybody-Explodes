@@ -31,6 +31,7 @@ extern bool coreTriggered;
 extern Encoder encLeft;
 extern Encoder encRight;
 extern Adafruit_NeoPixel matrix;
+extern bool mazeWirePulled;
 
 // ── Colour palette ─────────────────────────────────────────────────────────
 
@@ -319,9 +320,15 @@ void setupMazeModule() {
 
 void updateMazeModule() {
   if (mazeSolved) {
-    if (!mazeDisplayCleared && millis() - mazeSolvedTime >= MAZE_CLEAR_DELAY) {
-      clearMazeDisplay();
-      mazeDisplayCleared = true;
+    if (mazeWirePulled) {
+      // Disconnected: Turn off the matrix immediately when the wire is yanked out
+      if (!mazeDisplayCleared) {
+        clearMazeDisplay();
+        mazeDisplayCleared = true;
+      }
+    } else {
+      // Hold Status: Keep drawing the solved green dot/white border scene until the wire drops
+      drawScene(); 
     }
     return;
   }
