@@ -64,7 +64,7 @@ void updateFrequencyModule() {
   if (needEncoder == 'L') {
     long change = leftRaw - freqLastLeftRead;
     if (abs(change) >= ENCODER_DEBOUNCE_TICKS) {
-      int dir = (change > 0) ? 1 : -1;
+      int dir = (change > 0) ? -1 : 1;
       freqLastLeftRead = leftRaw;
       if (dir == needDir) {
         freqClicks += abs(change);
@@ -86,7 +86,7 @@ void updateFrequencyModule() {
   } else if (needEncoder == 'R') {
     long change = rightRaw - freqLastRightRead;
     if (abs(change) >= ENCODER_DEBOUNCE_TICKS) {
-      int dir = (change > 0) ? 1 : -1;
+      int dir = (change > 0) ? -1 : 1;
       freqLastRightRead = rightRaw;
       if (dir == needDir) {
         freqClicks += abs(change);

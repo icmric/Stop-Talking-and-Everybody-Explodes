@@ -64,9 +64,9 @@ enum GameState {
 // ── Debug / bypass flags ───────────────────────────────────────────────────
 // Set to true to skip a module during development/testing.
 
-const bool BYPASS_FREQUENCY_MODULE = false;
-const bool BYPASS_MAZE_MODULE = false;
-const bool BYPASS_CORE_MODULE = false;
+const bool BYPASS_FREQUENCY_MODULE = true;
+const bool BYPASS_MAZE_MODULE = true;
+const bool BYPASS_CORE_MODULE = true;
 const bool BYPASS_BUTTON_COMBO = false;
 
 // When true, skips the key-switch requirement and starts immediately on boot.
@@ -500,22 +500,25 @@ bool readKeySwitchDebounced() {
 }
 
 void resetGameModules() {
-  frequencyModuleSolved = false;
-  mazeSolved = false;
-  mazeSetupDone = false;
-  mazeDisplayCleared = false;
-  coreTriggered = false;
-  coreSolved = false;
-  buttonComboSolved = false;
-  endSequencePlayed = false;
+  // Enforce bypass configuration states directly into runtime tracking
+  frequencyModuleSolved   = BYPASS_FREQUENCY_MODULE;
+  frequencyWirePulled     = BYPASS_FREQUENCY_MODULE;
+  lastFrequencyWirePulled = BYPASS_FREQUENCY_MODULE;
 
-  frequencyWirePulled = false;
-  mazeWirePulled = false;
-  buttonComboWirePulled = false;
+  mazeSolved              = BYPASS_MAZE_MODULE;
+  mazeWirePulled          = BYPASS_MAZE_MODULE;
+  lastMazeWirePulled      = BYPASS_MAZE_MODULE;
+  mazeSetupDone           = BYPASS_MAZE_MODULE;
+  mazeDisplayCleared      = false;
 
-  lastFrequencyWirePulled = false;
-  lastMazeWirePulled = false;
-  lastButtonComboWirePulled = false;
+  coreTriggered           = BYPASS_CORE_MODULE;
+  coreSolved              = BYPASS_CORE_MODULE;
+
+  buttonComboSolved       = BYPASS_BUTTON_COMBO;
+  buttonComboWirePulled   = BYPASS_BUTTON_COMBO;
+  lastButtonComboWirePulled = BYPASS_BUTTON_COMBO;
+
+  endSequencePlayed       = false;
 }
 
 void startGame() {
@@ -547,7 +550,7 @@ void handleKeySwitch() {
         endSequencePlayed = true;
       }
     } else if (currentGameState == STATE_WON) {
-      if (!coreTriggered && !coreSolved) { triggerCoreEvent(); delay(100); }
+      if (!BYPASS_CORE_MODULE && !coreTriggered && !coreSolved) { triggerCoreEvent(); delay(100); }
       currentGameState = STATE_DISARMED;
       timerRunning = false;
       stopBuzzer();
@@ -640,7 +643,7 @@ void updateWireCutting() {
 // =============================================================================
 
 void checkModuleTransitionsAndTriggerCore() {
-  if (coreTriggered || coreSolved) return;
+  if (BYPASS_CORE_MODULE || coreTriggered || coreSolved) return;
 
   // Thermal core spikes trigger strictly after hardware termination verification
   bool anyJustCompleted =
@@ -657,7 +660,7 @@ void checkModuleTransitionsAndTriggerCore() {
 
 void updateGameState() {
   if (currentGameState == STATE_RUNNING && allModulesSolved()) {
-    if (!coreTriggered && !coreSolved) triggerCoreEvent();
+    if (!BYPASS_CORE_MODULE && !coreTriggered && !coreSolved) triggerCoreEvent();
     currentGameState = STATE_WON;
   }
 }
@@ -714,37 +717,6 @@ void setup() {
   clearMazeDisplay();
 
   // ── Apply bypass flags ─────────────────────────────────────────────────
-
-  if (BYPASS_FREQUENCY_MODULE) {
-    frequencyModuleSolved = true;
-    frequencyWirePulled = true;
-    lastFrequencyWirePulled = true;
-    activeEncoderModule = MAZE_MODULE;
-    Serial.println(F("BYPASS: Frequency module"));
-  }
-  if (BYPASS_MAZE_MODULE) {
-    mazeSolved = true;
-    mazeWirePulled = true;
-    lastMazeWirePulled = true;
-    mazeSetupDone = true;
-    Serial.println(F("BYPASS: Maze module"));
-  }
-  if (BYPASS_CORE_MODULE) {
-    coreTriggered = true;
-    coreSolved = true;
-    Serial.println(F("BYPASS: Core module"));
-  }
-  if (BYPASS_FREQUENCY_MODULE && BYPASS_CORE_MODULE && !BYPASS_MAZE_MODULE) {
-    setupMazeModule();
-    mazeSetupDone = true;
-    Serial.println(F("BYPASS: Maze initialised immediately (Freq + Core bypassed)"));
-  }
-  if (BYPASS_BUTTON_COMBO) {
-    buttonComboSolved = true;
-    buttonComboWirePulled = true;
-    lastButtonComboWirePulled = true;
-    Serial.println(F("BYPASS: Button combo"));
-  }
 
   debugPrintSerial();
 

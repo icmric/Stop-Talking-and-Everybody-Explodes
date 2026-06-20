@@ -339,7 +339,7 @@ void updateMazeModule() {
   long currLeft   = encLeft.read();
   long changeLeft = currLeft - mazeLastLeftPos;
   if (abs(changeLeft) >= 4 && now - mazeLastLeftMoveTime > mazeMoveDelay) {
-    changed = (changeLeft > 0) ? moveRight() : moveLeft();
+    changed = (changeLeft > 0) ? moveUp() : moveDown();
     mazeLastLeftPos = currLeft;
     mazeLastLeftMoveTime = now;  // always consume — prevents wall hit re-triggering
   }
@@ -347,7 +347,7 @@ void updateMazeModule() {
   long currRight   = encRight.read();
   long changeRight = currRight - mazeLastRightPos;
   if (abs(changeRight) >= 4 && now - mazeLastRightMoveTime > mazeMoveDelay) {
-    changed = (changeRight > 0) ? moveDown() : moveUp();
+    changed = (changeRight > 0) ? moveLeft() : moveRight();
     mazeLastRightPos = currRight;
     mazeLastRightMoveTime = now;  // always consume
   }
