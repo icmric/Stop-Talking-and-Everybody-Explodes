@@ -17,10 +17,10 @@
     D4, D5   Right encoder (CLK / DT)
     D6       Buzzer
     D7       Microphone sensor (Core module)
-    D12      Vibration motor (via transistor; active HIGH)
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
     D11      Blue button (INPUT_PULLUP)
+    D12      Vibration motor (via transistor; active HIGH)
     D20, D21 I2C bus — LCD 16×2 (0x27)
     D22      8×8 WS2812B matrix (NeoPixel data)
     D31      Key switch
@@ -105,7 +105,7 @@ String bombSerialNumber = "";
 
 // ── Timer ──────────────────────────────────────────────────────────────────
 
-const int TIMER_START_MINUTES  = 5;
+const int TIMER_START_MINUTES  = 6;
 const unsigned long TIMER_TOTAL_DURATION = (unsigned long)TIMER_START_MINUTES * 60UL * 1000UL;
 
 int remainingSeconds = TIMER_START_MINUTES * 60;
@@ -656,7 +656,25 @@ void checkModuleTransitionsAndTriggerCore() {
     (!lastMazeWirePulled && mazeWirePulled && !BYPASS_MAZE_MODULE) ||
     (!lastButtonComboWirePulled && buttonComboWirePulled && !BYPASS_BUTTON_COMBO);
 
-  if (anyJustCompleted && random(100) < 50) triggerCoreEvent();
+  if (anyJustCompleted) {
+    // 1. Calculate how many puzzle modules are actually enabled in this game setup
+    int totalPriorModules = 0;
+    if (!BYPASS_FREQUENCY_MODULE) totalPriorModules++;
+    if (!BYPASS_MAZE_MODULE) totalPriorModules++;
+    if (!BYPASS_BUTTON_COMBO) totalPriorModules++;
+
+    // 2. Count how many wires have been successfully severed so far
+    int currentPulled = 0;
+    if (!BYPASS_FREQUENCY_MODULE && frequencyWirePulled) currentPulled++;
+    if (!BYPASS_MAZE_MODULE && mazeWirePulled) currentPulled++;
+    if (!BYPASS_BUTTON_COMBO && buttonComboWirePulled) currentPulled++;
+
+    // 3. Fallback Check: If we are at (or past) the second-to-last module, force it.
+    // Otherwise, fallback to the standard 75% probability roll.
+    if (currentPulled >= (totalPriorModules - 1) || random(100) < 75) {
+      triggerCoreEvent();
+    }
+  }
 
   lastFrequencyWirePulled = frequencyWirePulled;
   lastMazeWirePulled = mazeWirePulled;
