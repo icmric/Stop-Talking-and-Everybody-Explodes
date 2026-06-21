@@ -130,6 +130,7 @@ bool vibrationContinuous = false;
 const unsigned long BUZZER_INTERVAL_START = 5000;
 const unsigned long BUZZER_INTERVAL_END = 90;
 const unsigned long BUZZER_BEEP_DURATION = 80;
+unsigned long buzzerEndTime = 0;
 const int BUZZER_FREQ_START = 800;
 const int BUZZER_FREQ_END = 2000;
 const float BUZZER_INTERVAL_CURVE = 3.5f;
@@ -260,6 +261,12 @@ void updateVibration() {
 
 void buzzerTone(int frequency, unsigned long duration) {
   tone(BUZZER_PIN, frequency, duration);
+  buzzerEndTime = millis() + duration + 50;
+  
+  // Block vibrations during core overheating to avoid microphone picking up stray vibrations
+  if (currentGameState == STATE_RUNNING && coreMessageShown && !coreSolved) {
+    return; 
+  }
   if (!vibrationContinuous) startVibration(duration);
 }
 
@@ -273,6 +280,8 @@ void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs)
 void stopBuzzer() {
   noTone(BUZZER_PIN);
   digitalWrite(BUZZER_PIN, LOW);
+  // Reset gate with the extra buffer
+  buzzerEndTime = millis() + 50;
   if (!vibrationContinuous) stopVibration();
 }
 
@@ -294,10 +303,23 @@ void updateBuzzer() {
   // Core alert overrides normal beeping
   if (coreMessageShown && !coreSolved) {
     unsigned long cycleTime = millis() % 1000;
-    if (cycleTime < 200 || (cycleTime >= 250 && cycleTime < 450) || (cycleTime >= 500 && cycleTime < 700))
-      buzzerTone(1500, 200);
-    else
-      stopBuzzer();
+    
+    // Determine if the buzzer should be actively making sound right now
+    bool shouldBeOn = (cycleTime < 200 || (cycleTime >= 250 && cycleTime < 450) || (cycleTime >= 500 && cycleTime < 700));
+    
+    static bool lastCoreSoundActive = false;
+    
+    if (shouldBeOn) {
+      if (!lastCoreSoundActive) {
+        buzzerTone(1500, 200); // Fires ONCE at the exact start of a beep window
+        lastCoreSoundActive = true;
+      }
+    } else {
+      if (lastCoreSoundActive) {
+        stopBuzzer(); // Fires ONCE at the exact start of a silent window
+        lastCoreSoundActive = false;
+      }
+    }
     return;
   }
 
@@ -309,7 +331,6 @@ void updateBuzzer() {
   unsigned long now = millis();
 
   if (remainingSeconds <= 15) {
-    // Rapid panic beep in final 15 seconds
     unsigned long interval  = 100;
     int panicFreq = 1000 + (15 - remainingSeconds) * 50;
     if (now - buzzerLastBeepTime >= interval) {
@@ -322,7 +343,6 @@ void updateBuzzer() {
       (unsigned long)((BUZZER_INTERVAL_START - BUZZER_INTERVAL_END) * pow(t, BUZZER_INTERVAL_CURVE));
     int freq = BUZZER_FREQ_START +
       (int)((BUZZER_FREQ_END - BUZZER_FREQ_START) * pow(t, BUZZER_PITCH_CURVE));
-
     if (now - buzzerLastBeepTime >= interval) {
       buzzerTone(freq, BUZZER_BEEP_DURATION);
       buzzerLastBeepTime = now;
@@ -818,6 +838,12 @@ void setup() {
   pinMode(A6, INPUT_PULLUP);
   pinMode(A7, INPUT_PULLUP);
   delay(50);  // Let pull-ups settle
+  Serial.print("Wires: ");
+  Serial.print(digitalRead(A3));
+  Serial.print(digitalRead(A4));
+  Serial.print(digitalRead(A5));
+  Serial.print(digitalRead(A6));
+  Serial.println(digitalRead(A7));
 
   keyCurrentState = digitalRead(KEY_SWITCH_PIN);
   keyLastState    = keyCurrentState;
