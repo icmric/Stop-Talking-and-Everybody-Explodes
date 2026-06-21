@@ -25,8 +25,8 @@ extern void setLedLevel(int level);
 // ── Timing constants ──────────────────────────────────────────────────────────
 
 const int           MIC_SENSOR_PIN      = 7;
-const unsigned long MIC_READ_INTERVAL   = 50;   // Poll sensor every 100ms
-const unsigned long MIC_BREATH_TIMEOUT  = 800;   // Allow up to 600ms silence between breaths
+const unsigned long MIC_READ_INTERVAL   = 100;   // Poll sensor every 100ms
+const unsigned long MIC_BREATH_TIMEOUT  = 600;   // Allow up to 600ms silence between breaths
 const unsigned long BLOW_DURATION       = 5000;  // Total accumulation needed to solve
 const unsigned long FLASH_DURATION      = 3000;  // Alert flash phase length
 const unsigned long FLASH_CYCLE         = 500;   // Half-period (2Hz = 500ms on/off)
