@@ -363,8 +363,16 @@ void updateCountdown() {
       timerRunning = false;
       timerFinished = true;
       stopBuzzer();
-      if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON)
+      
+      if (currentGameState == STATE_RUNNING || currentGameState == STATE_WON) {
         currentGameState = STATE_FAILED;
+        
+        // FIX: Trigger the custom expanding explosion sequence upon running out of time
+        if (!endSequencePlayed) {
+          playDetonatedSequence(true); // Passes timedOut = true for the correct ending text
+          endSequencePlayed = true;
+        }
+      }
     }
   }
 }
@@ -422,16 +430,53 @@ void playDisarmedSequence() {
   if (s < 10) lcd.print("0");
   lcd.print(s); lcd.print(" remaining");
 
-  delay(100);
-  for (int i = 1; i <= 10; i++) { setLedLevel(i); delay(100); }
+  // Smoothly charge up the LED bar level
+  for (int i = 1; i <= 10; i++) { 
+    setLedLevel(i); 
+    delay(60); 
+  }
 
-  const int fanfare[] = {523, 659, 784, 1047, 1319};
-  for (int i = 0; i < 5; i++) { tone(BUZZER_PIN, fanfare[i], 120); delay(160); }
+  // Cinematic Green Ripple Wave expanding outward from the center
+  // dx and dy calculate the distance squared from the center 4 pixels using integer math
+  for (int wave = 0; wave < 5; wave++) {
+    // Satisfying ascending laser arpeggio paired with each wave step
+    tone(BUZZER_PIN, 400 + (wave * 250), 60);
+    
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        int dx = 2 * x - 7;
+        int dy = 2 * y - 7;
+        int distSq = dx * dx + dy * dy;
+        int pixelIdx = y * 8 + x;
+
+        if (wave == 0 && distSq <= 2)   matrix.setPixelColor(pixelIdx, 0x00FF00); // Ring 0 (Center)
+        if (wave == 1 && distSq == 18)  matrix.setPixelColor(pixelIdx, 0x00FF00); // Ring 1
+        if (wave == 2 && distSq == 50)  matrix.setPixelColor(pixelIdx, 0x00FF00); // Ring 2
+        if (wave == 3 && distSq >= 98)  matrix.setPixelColor(pixelIdx, 0x00FF00); // Ring 3 (Corners)
+      }
+    }
+    matrix.show();
+    delay(100);
+    
+    // Dim the trailing edge of the wave for a smooth ripple effect
+    for(int i = 0; i < 64; i++) {
+      uint32_t c = matrix.getPixelColor(i);
+      if (c == 0x00FF00) matrix.setPixelColor(i, 0x003300); 
+    }
+  }
   noTone(BUZZER_PIN);
 
-  // Green flash on matrix
-  for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x00FF00);
-  matrix.show(); delay(2000);
+  // Bring the whole matrix up to a warm, triumphant solid green pulse
+  for (int pulse = 0; pulse < 3; pulse++) {
+    for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x00FF00);
+    matrix.show();
+    delay(250);
+    for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x003300);
+    matrix.show();
+    delay(200);
+  }
+
+  // Clear display down to a pristine off state
   for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x000000);
   matrix.show();
 
@@ -441,40 +486,89 @@ void playDisarmedSequence() {
 }
 
 void playDetonatedSequence(bool timedOut) {
-  startVibration();
+  startVibration(); // Initiate continuous haptic rumble framework
 
-  for (int f = 2000; f >= 200; f -= 90) {
-    buzzerTone(f, 20);
-    unsigned long end = millis() + 10;
-    while (millis() < end) updateVibration();
+  // Multi-Stage Expanding Plasma Fireball Animation
+  // Steps iterate outward through concentric distance thresholds
+  for (int step = 0; step < 8; step++) {
+    // Generate a violent, chaotic explosion crackle sound pitch down
+    tone(BUZZER_PIN, random(1800 - (step * 200), 2400 - (step * 200)), 40);
+
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        int dx = 2 * x - 7;
+        int dy = 2 * y - 7;
+        int distSq = dx * dx + dy * dy;
+        int pixelIdx = y * 8 + x;
+
+        // Map colors dynamically relative to the expanding shockwave front
+        if (distSq <= 2) { // Ring 0 (Center core)
+          if (step < 2) matrix.setPixelColor(pixelIdx, 0xFFFFFF);      // Blinding white flash
+          else if (step < 4) matrix.setPixelColor(pixelIdx, 0xFFCC00); // Hot yellow
+          else if (step < 6) matrix.setPixelColor(pixelIdx, 0xFF4500); // Fire orange
+          else matrix.setPixelColor(pixelIdx, 0x440000);               // Cooling ash
+        } 
+        else if (distSq > 2 && distSq <= 18) { // Ring 1
+          if (step == 1) matrix.setPixelColor(pixelIdx, 0xFFFFFF);
+          else if (step < 4) matrix.setPixelColor(pixelIdx, 0xFFCC00);
+          else if (step < 6) matrix.setPixelColor(pixelIdx, 0xFF4500);
+          else matrix.setPixelColor(pixelIdx, 0x330000);
+        } 
+        else if (distSq > 18 && distSq <= 50) { // Ring 2
+          if (step == 2) matrix.setPixelColor(pixelIdx, 0xFFFFFF);
+          else if (step == 3) matrix.setPixelColor(pixelIdx, 0xFFCC00);
+          else if (step < 6) matrix.setPixelColor(pixelIdx, 0xFF4500);
+          else matrix.setPixelColor(pixelIdx, 0x110000);
+        } 
+        else { // Ring 3 (Outer edge bounds)
+          if (step == 3) matrix.setPixelColor(pixelIdx, 0xFFFFFF);
+          else if (step == 4) matrix.setPixelColor(pixelIdx, 0xFFCC00);
+          else if (step == 5) matrix.setPixelColor(pixelIdx, 0xFF4500);
+          else if (step == 6) matrix.setPixelColor(pixelIdx, 0xFF0000);
+          else matrix.setPixelColor(pixelIdx, 0x000000);
+        }
+      }
+    }
+    matrix.show();
+    delay(60);
   }
   noTone(BUZZER_PIN);
 
-  for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0xFF0000);
-  matrix.show();
-  unsigned long redEnd = millis() + 2500;
-  while (millis() < redEnd) updateVibration();
+  // Dissipation phase: Fiery residual sparks twinkling and cooling down to empty
+  for (int fade = 0; fade < 12; fade++) {
+    for (int i = 0; i < 64; i++) {
+      uint32_t c = matrix.getPixelColor(i);
+      if (c > 0 && random(100) < 35) {
+        matrix.setPixelColor(i, 0x000000); // Pixel burns completely out
+      } else if (c == 0xFF4500 || c == 0xFFCC00) {
+        matrix.setPixelColor(i, 0x330000); // Cool down to dim deep red
+      }
+    }
+    matrix.show();
+    delay(70);
+  }
+
+  // Clear total matrix array layout completely before warning strobes
   for (int i = 0; i < 64; i++) matrix.setPixelColor(i, 0x000000);
   matrix.show();
 
-  setLedLevel(10);
-  unsigned long ledEnd = millis() + 600;
-  while (millis() < ledEnd) updateVibration();
-
-  for (int i = 0; i < 15; i++) {
-    buzzerToneWait((i % 2 == 0) ? 80 : 120, 40, 40);
-  }
-  noTone(BUZZER_PIN);
-
-  for (int i = 0; i < 5; i++) {
+  // Violent Post-Explosion Emergency Status Strobes
+  for (int i = 0; i < 6; i++) {
     setLedLevel(10);
-    for (int j = 0; j < 64; j++) matrix.setPixelColor(j, 0xFF0000);
+    for (int j = 0; j < 64; j++) matrix.setPixelColor(j, 0xFF0000); // Pure emergency red warning
     matrix.show();
+    
+    // Screaming low-frequency building layout alert tone
+    buzzerTone(i % 2 == 0 ? 120 : 90, 50);
+    
     unsigned long flashOn = millis() + 60;
     while (millis() < flashOn) updateVibration();
+    
     setLedLevel(0);
     for (int j = 0; j < 64; j++) matrix.setPixelColor(j, 0x000000);
     matrix.show();
+    noTone(BUZZER_PIN);
+    
     unsigned long flashOff = millis() + 60;
     while (millis() < flashOff) updateVibration();
   }
