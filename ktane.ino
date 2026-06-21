@@ -130,7 +130,6 @@ bool vibrationContinuous = false;
 const unsigned long BUZZER_INTERVAL_START = 5000;
 const unsigned long BUZZER_INTERVAL_END = 90;
 const unsigned long BUZZER_BEEP_DURATION = 80;
-unsigned long buzzerEndTime = 0;
 const int BUZZER_FREQ_START = 800;
 const int BUZZER_FREQ_END = 2000;
 const float BUZZER_INTERVAL_CURVE = 3.5f;
@@ -261,7 +260,6 @@ void updateVibration() {
 
 void buzzerTone(int frequency, unsigned long duration) {
   tone(BUZZER_PIN, frequency, duration);
-  buzzerEndTime = millis() + duration + 50;
   
   // Block vibrations during core overheating to avoid microphone picking up stray vibrations
   if (currentGameState == STATE_RUNNING && coreMessageShown && !coreSolved) {
@@ -280,8 +278,6 @@ void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs)
 void stopBuzzer() {
   noTone(BUZZER_PIN);
   digitalWrite(BUZZER_PIN, LOW);
-  // Reset gate with the extra buffer
-  buzzerEndTime = millis() + 50;
   if (!vibrationContinuous) stopVibration();
 }
 
