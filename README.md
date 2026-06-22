@@ -3,7 +3,7 @@ Stop talking and everybody explodes is an open-source take on the popular comput
 
 You must work closley with the other player to solve a series of puzles and work around events all before the time runs out, resulting in a regrettable increase in room temperature!
 
-This game is best enjoyed by using a physical copy of the manual (download and print manual.pdf), however an online mobile-friendly version is also avalible at [manual.ericmcc.com](manual.ericmcc.com) (or the raw pdf at [staee.ericmcc.com](staee.ericmcc.com))
+This game is best enjoyed by using a physical copy of the manual (download and print manual.pdf), however an online mobile-friendly version is also avalible at [manual.ericmcc.com](https://manual.ericmcc.com/) (or the raw pdf at [staee.ericmcc.com](https://staee.ericmcc.com/))
 
 This game was put together by a team of 6 of us for a university project, while there may be some future updates made we do not gaurantee any further maintinance
 
