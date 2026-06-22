@@ -125,7 +125,7 @@ void updateFrequencyModule() {
         setLedLevel(10); delay(150);
         setLedLevel(0);  delay(150);
       }
-      setLedLevel(10);
+      setLedLevel(0);
     }
   }
 }

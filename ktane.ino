@@ -844,8 +844,11 @@ void setup() {
   keyCurrentState = digitalRead(KEY_SWITCH_PIN);
   keyLastState    = keyCurrentState;
 
+  Serial.println("Read Key State");
+
   seedRandom();
   bombSerialNumber = generateSerialNumber();
+  Serial.println("Generated Serial Number");
 
   tm1637.begin();
   tm1637.printTime(88, 88, true);  // "88:88" splash
