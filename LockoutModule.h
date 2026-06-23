@@ -8,8 +8,9 @@
   Intercepts the shared primary red button input once all prior assigned 
   shift tasks are either fully neutralized or explicitly bypassed by management.
   
-  Operator must press the button when any digit on the countdown timer displays a '1'.
-  Penalty: Input when a '1' is absent = -3s efficiency tax.
+  Operator must press the button when any digit on the countdown timer displays
+  the third digit of the serial number.
+  Penalty: Input when that digit is absent = -3s efficiency tax.
 */
 
 #include "SerialNumber.h"
@@ -72,10 +73,12 @@ void updateLockoutModule() {
   if (redState == LOW && lastRedState == HIGH && (now - lastRedPress > debounceDelay)) {
     lastRedPress = now;
     
-    // Evaluate the live TM1637 display state array for the presence of a '1'
-    bool timerContainsOne = (currentDigits[0] == 1 || currentDigits[1] == 1 || currentDigits[2] == 1 || currentDigits[3] == 1);
+    // Evaluate the live TM1637 display for the serial's third digit
+    int targetDigit = getSerialDigit3();
+    bool timerContainsTarget = (currentDigits[0] == targetDigit || currentDigits[1] == targetDigit ||
+                                currentDigits[2] == targetDigit || currentDigits[3] == targetDigit);
     
-    if (timerContainsOne) {
+    if (timerContainsTarget) {
       lockoutOverrideSolved = true;
       
       // Authoritative 3-note ascending corporate chime. Shift nearly complete.
