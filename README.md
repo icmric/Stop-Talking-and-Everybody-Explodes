@@ -25,7 +25,7 @@ All components used are very generic and inexpencive. I have linked each item be
 * A bunch of 10mm and 20mm [DuPont Cables](https://www.aliexpress.com/item/4000204858217.html)
 * A small power bank, any should work but i use [this one](https://www.aliexpress.com/item/1005008094289372.html)
 
-Not directly avalible for purchase is the enclosure which is a custom 3d print, there is no suitable existing enclosure avalible for purchase however all files requires have been included in the release
+Not directly avalible for purchase is the enclosure which is custom made. All required files have been included so you can print your own!
   
   **Note:** For standard 3d prints use the .STL files, if you would like to print the text in a different colour use the .3mf file. There is also the .f3d if you would like to tweak the design!
   
