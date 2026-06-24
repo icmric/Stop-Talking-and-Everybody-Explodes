@@ -21,6 +21,8 @@ extern const int RED_BUTTON_PIN;
 extern void applyPenalty(const char* reason);
 extern void buzzerTone(int frequency, unsigned long duration);
 extern void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs);
+extern void playStepConfirmTone();
+extern void playModuleCompleteTone();
 
 // Track institutional compliance parameters across module profiles
 extern const bool BYPASS_FREQUENCY_MODULE;
@@ -81,10 +83,7 @@ void updateLockoutModule() {
     if (timerContainsTarget) {
       lockoutOverrideSolved = true;
       
-      // Authoritative 3-note ascending corporate chime. Shift nearly complete.
-      buzzerToneWait(750, 100, 120);
-      buzzerToneWait(950, 100, 120);
-      buzzerTone(1250, 300);
+      playModuleCompleteTone();
     } else {
       // Levy efficiency penalty tax immediately against the countdown pool
       applyPenalty("LockoutOverrideWrong");

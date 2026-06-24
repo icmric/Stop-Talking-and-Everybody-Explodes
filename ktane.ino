@@ -289,6 +289,18 @@ void playSuccessTone() {
   stopBuzzer();
 }
 
+// Short single confirm
+void playStepConfirmTone() {
+  buzzerToneWait(1400, 90, 110);
+}
+
+// Three-tone ascending confirm
+void playModuleCompleteTone() {
+  buzzerToneWait(900, 80, 90);
+  buzzerToneWait(1200, 80, 90);
+  buzzerToneWait(1600, 120, 140);
+}
+
 float getTimerProgress() {
   long msLeft = (long)remainingSeconds * 1000L - (long)(millis() - timerLastTick);
   msLeft = constrain(msLeft, 0L, (long)TIMER_TOTAL_DURATION);
