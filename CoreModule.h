@@ -23,11 +23,11 @@ extern void setLedLevel(int level);
 // ── Timing constants ──────────────────────────────────────────────────────
 
 const int           MIC_SENSOR_PIN      = 7;
-const unsigned long MIC_SAMPLE_INTERVAL = 10;   // ms between raw samples
+const unsigned long MIC_SAMPLE_INTERVAL = 40;   // ms between raw samples
 const int           MIC_WINDOW_SIZE     = 30;   // samples in rolling window (30 * 10ms = 300ms window)
-const int           MIC_HIGH_THRESHOLD  = 12;   // need at least this many "detected" samples in the window to count as blowing (tune this)
+const int           MIC_HIGH_THRESHOLD  = 10;   // need at least this many "detected" samples in the window to count as blowing (tune this)
 
-const unsigned long MIC_BREATH_TIMEOUT  = 600;   // Allow up to 600ms silence between breaths
+const unsigned long MIC_BREATH_TIMEOUT  = 700;   // Allow up to 600ms silence between breaths
 const unsigned long BLOW_DURATION       = 5000;  // Total accumulation needed to solve
 const unsigned long FLASH_DURATION      = 3000;  // Alert flash phase length
 const unsigned long FLASH_CYCLE         = 500;   // Half-period (2Hz = 500ms on/off)
