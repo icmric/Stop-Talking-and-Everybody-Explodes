@@ -397,6 +397,7 @@ void updateCountdown() {
         
         // FIX: Trigger the custom expanding explosion sequence upon running out of time
         if (!endSequencePlayed) {
+          tm1637.printTime(00, 00, true);
           playDetonatedSequence(true); // Passes timedOut = true for the correct ending text
           endSequencePlayed = true;
         }
@@ -514,6 +515,7 @@ void playDisarmedSequence() {
 }
 
 void playDetonatedSequence(bool timedOut) {
+
   startVibration(); // Initiate continuous haptic rumble framework
 
   // Multi-Stage Expanding Plasma Fireball Animation
