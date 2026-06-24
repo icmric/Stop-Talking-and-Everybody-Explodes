@@ -16,7 +16,7 @@
     D2, D3   Left encoder  (CLK / DT)
     D4, D5   Right encoder (CLK / DT)
     D6       Buzzer
-    D13 (temp)       Microphone sensor (Core module)
+    D7       Microphone sensor (Core module)
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
     D11      Blue button (INPUT_PULLUP)
@@ -67,7 +67,7 @@ enum GameState {
 
 const bool BYPASS_FREQUENCY_MODULE = false;
 const bool BYPASS_MAZE_MODULE = false;
-const bool BYPASS_CORE_MODULE = true;
+const bool BYPASS_CORE_MODULE = false;
 const bool BYPASS_BUTTON_COMBO = false;
 const bool BYPASS_LOCKOUT_MODULE = false;
 

@@ -19,7 +19,7 @@ extern String bombSerialNumber;
 
 // Seed RNG from floating analog pins before calling generateSerialNumber().
 void seedRandom() {
-  randomSeed(analogRead(A4) + analogRead(A5) + micros());
+  randomSeed(analogRead(A14) + analogRead(A15) + micros());
 }
 
 // ── Letter accessors (1-based, positions 1-4) ─────────────────────────────────
