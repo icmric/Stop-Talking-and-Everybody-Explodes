@@ -16,7 +16,7 @@
     D2, D3   Left encoder  (CLK / DT)
     D4, D5   Right encoder (CLK / DT)
     D6       Buzzer
-    D7       Microphone sensor (Core module)
+    D13 (temp)       Microphone sensor (Core module)
     D8, D9   4-digit TM1637 display (DIO / CLK)
     D10      Red button   (INPUT_PULLUP)
     D11      Blue button (INPUT_PULLUP)

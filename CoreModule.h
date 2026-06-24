@@ -47,11 +47,6 @@ unsigned long coreFlashStart         = 0;
 unsigned long coreSolvedTime         = 0;
 unsigned long coreAccumulatedBlowTime = 0;
 
-// Sustained input tracking variables
-unsigned long currentBlowStreak      = 0;
-unsigned long continuousSilenceTime  = 0;
-bool isGenuineBlowActive             = false;
-
 extern LiquidCrystal_I2C lcd;
 extern String bombSerialNumber;
 extern int currentDigits[4];
@@ -69,7 +64,7 @@ bool isCoreFlashing() {
 }
 
 bool getCoreFlashState() {
-  return (((millis() - coreFlashStart) / FLASH_CYCLE) % 2) == 0;
+  return ((( millis() - coreFlashStart) / FLASH_CYCLE) % 2) == 0;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -89,11 +84,10 @@ void triggerCoreEvent() {
   coreFlashStart          = millis();
   coreMessageShown        = false;
   coreAccumulatedBlowTime = 0;
-  currentBlowStreak       = 0;
-  continuousSilenceTime   = 0;
-  isGenuineBlowActive     = false;
+  coreBlowing             = false;
+  coreLastMicRead         = millis();
+  micLastDetectionTime    = millis();
 
-  // Clear the maze display when the core alert fires
   extern bool mazeSetupDone;
   extern void clearMazeDisplay();
   if (mazeSetupDone) clearMazeDisplay();
@@ -142,7 +136,7 @@ void updateCoreModule() {
     return;
   }
 
-  // ── Microphone sampling with Extended Signal Filtering ──────────────────────
+ // ── Microphone sampling ──────────────────────────────────────────────────
   if (now - coreLastMicRead < MIC_READ_INTERVAL) return;
   unsigned long deltaTime = now - coreLastMicRead;
   coreLastMicRead = now;
@@ -150,40 +144,29 @@ void updateCoreModule() {
   bool micDetected = (digitalRead(MIC_SENSOR_PIN) == HIGH);
 
   if (micDetected) {
-    continuousSilenceTime = 0;
-    currentBlowStreak += deltaTime;
+  Serial.print(now);
+  Serial.println(" MIC HIGH");
+}
 
-    // A buzzer beep maxes out at 200ms. Requiring a solid 350ms continuous 
-    // stream guarantees that rhythmic buzzer pulses are completely ignored.
-    if (currentBlowStreak >= 350) {
-      if (!isGenuineBlowActive) {
-        isGenuineBlowActive = true;
-        coreBlowStart = now - coreAccumulatedBlowTime; // Snap timeline forward
-      }
-      micLastDetectionTime = now;
-    }
-  } else {
-    // Immediate break: If the signal drops (like a buzzer silence gap), wipe the streak counter
-    currentBlowStreak = 0; 
-    continuousSilenceTime += deltaTime;
-
-    // Only drop the main progress timer if they stop blowing entirely to catch a breath (600ms)
-    if (continuousSilenceTime >= MIC_BREATH_TIMEOUT) {
-      isGenuineBlowActive = false;
+  if (micDetected) {
+    micLastDetectionTime = now;
+    coreBlowing = true;
+    coreAccumulatedBlowTime += deltaTime;   // only grows while actually HIGH
+  } else if (coreBlowing) {
+    if (now - micLastDetectionTime >= MIC_BREATH_TIMEOUT) {
+      // Silence too long — give up progress
+      coreBlowing             = false;
       coreAccumulatedBlowTime = 0;
       if (coreMessageShown && !coreFlashing) {
         lcd.setCursor(0, 1);
         lcd.print("BLOW TO COOL    ");
       }
     }
+    // else: just a short breathing gap — accumulated time stays frozen, not reset
   }
 
-  // Sync state back to global controller tracker flags
-  coreBlowing = isGenuineBlowActive;
-
-  // ── Progress display & solve check ────────────────────────────────────────
-  if (isGenuineBlowActive) {
-    coreAccumulatedBlowTime = now - coreBlowStart;
+  // ── Progress display & solve check ───────────────────────────────────────
+  if (coreBlowing) {
     int secLeft = (BLOW_DURATION - coreAccumulatedBlowTime) / 1000 + 1;
 
     lcd.setCursor(0, 1);
@@ -196,7 +179,6 @@ void updateCoreModule() {
       coreSolvedTime          = now;
       coreDisplayCleared      = false;
       coreAccumulatedBlowTime = 0;
-      isGenuineBlowActive     = false;
       coreBlowing             = false;
 
       lcd.clear();
