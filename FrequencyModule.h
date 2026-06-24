@@ -35,7 +35,7 @@ long freqLastRightRead    = 0;
 unsigned long freqLastClickTime = 0;
 bool frequencyModuleSolved = false;
 
-const unsigned long FREQ_CONFIRM_TIME       = 500; // ms of stillness before step advances
+const unsigned long FREQ_CONFIRM_TIME       = 150; // ms of stillness before step advances
 const int           ENCODER_DEBOUNCE_TICKS  = 4;   // ignore changes smaller than this
 
 // ── Setup ─────────────────────────────────────────────────────────────────────

@@ -262,10 +262,6 @@ void updateVibration() {
 void buzzerTone(int frequency, unsigned long duration) {
   tone(BUZZER_PIN, frequency, duration);
   
-  // Block vibrations during core overheating to avoid microphone picking up stray vibrations
-  if (currentGameState == STATE_RUNNING && coreMessageShown && !coreSolved) {
-    return; 
-  }
   if (!vibrationContinuous) startVibration(duration);
 }
 
