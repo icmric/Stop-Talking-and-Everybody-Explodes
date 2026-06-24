@@ -10,7 +10,7 @@
   
   Operator must press the button when any digit on the countdown timer displays
   the third digit of the serial number.
-  Penalty: Input when that digit is absent = -3s efficiency tax.
+  Penalty: Input when that digit is absent = immediate detonation.
 */
 
 #include "SerialNumber.h"
@@ -18,11 +18,13 @@
 // Reference global assets from the master controller unit
 extern int currentDigits[4];
 extern const int RED_BUTTON_PIN;
-extern void applyPenalty(const char* reason);
-extern void buzzerTone(int frequency, unsigned long duration);
-extern void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs);
-extern void playStepConfirmTone();
+extern void stopBuzzer();
+extern void playDetonatedSequence(bool timedOut);
 extern void playModuleCompleteTone();
+
+extern GameState currentGameState;
+extern bool timerRunning;
+extern bool endSequencePlayed;
 
 // Track institutional compliance parameters across module profiles
 extern const bool BYPASS_FREQUENCY_MODULE;
@@ -85,8 +87,14 @@ void updateLockoutModule() {
       
       playModuleCompleteTone();
     } else {
-      // Levy efficiency penalty tax immediately against the countdown pool
-      applyPenalty("LockoutOverrideWrong");
+      currentGameState = STATE_FAILED;
+      timerRunning = false;
+      stopBuzzer();
+      if (!endSequencePlayed) {
+        playDetonatedSequence(false);
+        endSequencePlayed = true;
+      }
+      return;
     }
   }
   lastRedState = redState;
