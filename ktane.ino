@@ -87,7 +87,7 @@ const int DISP_DIO = 8, DISP_CLK = 9;
 const int NEOPIXEL_PIN = 22;
 const int NUM_PIXELS = 64;
 
-const int LED_BAR_PINS[10] = {35, 37, 39, 41, 43, 45, 47, 49, 51, 53};
+const int LED_BAR_PINS[10] = {53, 51, 49, 47, 45, 43, 41, 39, 37, 35};
 
 // ── Hardware objects ───────────────────────────────────────────────────────
 
@@ -171,6 +171,7 @@ void initializeLedBar() {
   for (int i = 0; i < 10; i++) {
     pinMode(LED_BAR_PINS[i], OUTPUT);
     digitalWrite(LED_BAR_PINS[i], LOW);
+
   }
 }
 
@@ -634,6 +635,8 @@ void resetGameModules() {
   frequencyWirePulled     = BYPASS_FREQUENCY_MODULE;
   lastFrequencyWirePulled = BYPASS_FREQUENCY_MODULE;
 
+  if (!BYPASS_FREQUENCY_MODULE) setupFrequencyModule();
+
   mazeSolved              = BYPASS_MAZE_MODULE;
   mazeWirePulled          = BYPASS_MAZE_MODULE;
   lastMazeWirePulled      = BYPASS_MAZE_MODULE;
@@ -832,6 +835,10 @@ void setup() {
   lcd.backlight();
 
   initializeLedBar();
+  for (int i = 1; i <= 10; i++) {
+    setLedLevel(i);
+    delay(35);
+  }
 
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(VIBRATION_PIN, OUTPUT);
@@ -868,7 +875,7 @@ void setup() {
   tm1637.printTime(88, 88, true);  // "88:88" splash
 
   setupCoreModule();
-  setupFrequencyModule();
+  //setupFrequencyModule();
   setupButtonComboModule();
   clearMazeDisplay();
 

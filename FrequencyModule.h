@@ -47,7 +47,7 @@ void setupFrequencyModule() {
   frequencySequence     = getFrequencySequence(getDigitSum());
   freqLastLeftRead      = encLeft.read();
   freqLastRightRead     = encRight.read();
-  setLedLevel(10);
+  //setLedLevel(10);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
