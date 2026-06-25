@@ -17,6 +17,8 @@
 extern ActiveEncoderModule activeEncoderModule;
 extern void setupMazeModule();
 extern void triggerCoreEvent();
+extern void playStepConfirmTone();
+extern void playModuleCompleteTone();
 extern void applyPenalty(const char* reason);
 extern void setLedLevel(int level);
 extern Encoder encLeft;
@@ -33,7 +35,7 @@ long freqLastRightRead    = 0;
 unsigned long freqLastClickTime = 0;
 bool frequencyModuleSolved = false;
 
-const unsigned long FREQ_CONFIRM_TIME       = 500; // ms of stillness before step advances
+const unsigned long FREQ_CONFIRM_TIME       = 150; // ms of stillness before step advances
 const int           ENCODER_DEBOUNCE_TICKS  = 4;   // ignore changes smaller than this
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ void setupFrequencyModule() {
   frequencySequence     = getFrequencySequence(getDigitSum());
   freqLastLeftRead      = encLeft.read();
   freqLastRightRead     = encRight.read();
-  setLedLevel(10);
+  //setLedLevel(10);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ void updateFrequencyModule() {
     freqLastLeftRead  = encLeft.read();
     freqLastRightRead = encRight.read();
 
+
     // Map remaining steps to LED level (starts full, drains toward 1)
     int level = map(freqStep, 0, frequencySequence->stepCount, 10, 1);
     setLedLevel(constrain(level, 1, 10));
@@ -120,12 +123,17 @@ void updateFrequencyModule() {
     if (freqStep >= frequencySequence->stepCount) {
       frequencyModuleSolved = true;
 
+      playModuleCompleteTone();
+
       // Flash LED bar to signal completion
       for (int i = 0; i < 4; i++) {
         setLedLevel(10); delay(150);
         setLedLevel(0);  delay(150);
       }
       setLedLevel(0);
+    } else {
+      // Only play the confirmation tone if they havent completed the whole module
+      playStepConfirmTone();
     }
   }
 }

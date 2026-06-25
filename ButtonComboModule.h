@@ -21,6 +21,8 @@
 extern void applyPenalty(const char* reason);
 extern void buzzerTone(int frequency, unsigned long duration);
 extern void buzzerToneWait(int frequency, unsigned long duration, unsigned long waitMs);
+extern void playStepConfirmTone();
+extern void playModuleCompleteTone();
 
 // ── Pins ───────────────────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ int buttonStepIndex    = 0;
 bool buttonComboSolved = false;
 
 unsigned long buttonStartTime = 0;
-const unsigned long BUTTON_TIME_LIMIT = 5000;  // Reset sequence if no press within 5s
+const unsigned long BUTTON_TIME_LIMIT = 2500;  // Reset sequence if no press within 2.5s
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 
@@ -62,13 +64,9 @@ void handleButtonPress(int button) {
     if (buttonStepIndex >= 4) {
       buttonComboSolved = true;
       
-      // Unmistakable 3-note ascending validation chime (Safe to yank wire!)
-      buzzerToneWait(600, 100, 120);
-      buzzerToneWait(850, 100, 120);
-      buzzerTone(1200, 250);
+      playModuleCompleteTone();
     } else {
-      // Crisp individual button confirmation chirp
-      buzzerTone(1000, 40);
+      playStepConfirmTone();
     }
   } else {
     // Apply default 3-second penalty, buzz, and scrub combo progress back to empty

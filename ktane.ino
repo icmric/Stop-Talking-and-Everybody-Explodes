@@ -67,7 +67,7 @@ enum GameState {
 
 const bool BYPASS_FREQUENCY_MODULE = false;
 const bool BYPASS_MAZE_MODULE = false;
-const bool BYPASS_CORE_MODULE = true;
+const bool BYPASS_CORE_MODULE = false;
 const bool BYPASS_BUTTON_COMBO = false;
 const bool BYPASS_LOCKOUT_MODULE = false;
 
@@ -87,7 +87,7 @@ const int DISP_DIO = 8, DISP_CLK = 9;
 const int NEOPIXEL_PIN = 22;
 const int NUM_PIXELS = 64;
 
-const int LED_BAR_PINS[10] = {35, 37, 39, 41, 43, 45, 47, 49, 51, 53};
+const int LED_BAR_PINS[10] = {53, 51, 49, 47, 45, 43, 41, 39, 37, 35};
 
 // ── Hardware objects ───────────────────────────────────────────────────────
 
@@ -171,6 +171,7 @@ void initializeLedBar() {
   for (int i = 0; i < 10; i++) {
     pinMode(LED_BAR_PINS[i], OUTPUT);
     digitalWrite(LED_BAR_PINS[i], LOW);
+
   }
 }
 
@@ -261,10 +262,6 @@ void updateVibration() {
 void buzzerTone(int frequency, unsigned long duration) {
   tone(BUZZER_PIN, frequency, duration);
   
-  // Block vibrations during core overheating to avoid microphone picking up stray vibrations
-  if (currentGameState == STATE_RUNNING && coreMessageShown && !coreSolved) {
-    return; 
-  }
   if (!vibrationContinuous) startVibration(duration);
 }
 
@@ -287,6 +284,18 @@ void playSuccessTone() {
     buzzerToneWait(notes[i], 150, 200);
   }
   stopBuzzer();
+}
+
+// Short single confirm
+void playStepConfirmTone() {
+  buzzerToneWait(1400, 90, 110);
+}
+
+// Three-tone ascending confirm
+void playModuleCompleteTone() {
+  buzzerToneWait(900, 80, 90);
+  buzzerToneWait(1200, 80, 90);
+  buzzerToneWait(1600, 120, 140);
 }
 
 float getTimerProgress() {
@@ -385,6 +394,7 @@ void updateCountdown() {
         
         // FIX: Trigger the custom expanding explosion sequence upon running out of time
         if (!endSequencePlayed) {
+          tm1637.printTime(00, 00, true);
           playDetonatedSequence(true); // Passes timedOut = true for the correct ending text
           endSequencePlayed = true;
         }
@@ -502,6 +512,7 @@ void playDisarmedSequence() {
 }
 
 void playDetonatedSequence(bool timedOut) {
+
   startVibration(); // Initiate continuous haptic rumble framework
 
   // Multi-Stage Expanding Plasma Fireball Animation
@@ -619,6 +630,8 @@ void resetGameModules() {
   frequencyModuleSolved   = BYPASS_FREQUENCY_MODULE;
   frequencyWirePulled     = BYPASS_FREQUENCY_MODULE;
   lastFrequencyWirePulled = BYPASS_FREQUENCY_MODULE;
+
+  if (!BYPASS_FREQUENCY_MODULE) setupFrequencyModule();
 
   mazeSolved              = BYPASS_MAZE_MODULE;
   mazeWirePulled          = BYPASS_MAZE_MODULE;
@@ -818,6 +831,10 @@ void setup() {
   lcd.backlight();
 
   initializeLedBar();
+  for (int i = 1; i <= 10; i++) {
+    setLedLevel(i);
+    delay(35);
+  }
 
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(VIBRATION_PIN, OUTPUT);
@@ -854,7 +871,7 @@ void setup() {
   tm1637.printTime(88, 88, true);  // "88:88" splash
 
   setupCoreModule();
-  setupFrequencyModule();
+  //setupFrequencyModule();
   setupButtonComboModule();
   clearMazeDisplay();
 

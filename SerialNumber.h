@@ -19,7 +19,7 @@ extern String bombSerialNumber;
 
 // Seed RNG from floating analog pins before calling generateSerialNumber().
 void seedRandom() {
-  randomSeed(analogRead(A4) + analogRead(A5) + micros());
+  randomSeed(analogRead(A14) + analogRead(A15) + micros());
 }
 
 // ── Letter accessors (1-based, positions 1-4) ─────────────────────────────────
@@ -80,41 +80,34 @@ int getLastDigit()         { return getSerialDigit(4); }
 
 
 String generateSerialNumber() {
-    // Generate the entire serial number
   String s = "";
-  for (int i = 0; i < 4; i++)
-   {
-    s += (char)('A' + random(0, 26));   // Positions 1-4: A-Z
-   }
+  for (int i = 0; i < 4; i++) {
+    s += (char)('A' + random(0, 26));
+  }
   s += '-';
   for (int i = 0; i < 4; i++) {
-    s += (char)('0' + random(0, 10));   // Digits 1-4: 0-9
+    s += (char)('0' + random(0, 10));
   }
 
-  // Before returning it we need to validate that it correct, if it is then return, otherwise regenerate components until its valid.
   bombSerialNumber = s;
-    int mod1 = getMod1Color(getSerialDigit4());
-    int mod2 = getMod2Color(getSerialDigit1());
-    int mod3 = getMod3Color(getSerialLetter4());
-    // Keep updating the value dictating module 2 until it becomes valid
-    while (mod1 == mod2 || mod1 == mod3) {
-        // Regenerate the first digit if colides with module 1
-        s[5] = (char)('0' + random(0, 10));
+  int mod1 = getMod1Color(getSerialDigit4());
+  int mod2 = getMod2Color(getSerialDigit1());
+  int mod3 = getMod3Color(getSerialLetter4());
 
-        // update the value if we updated it, 
-        bombSerialNumber = s;
-        mod2 = getMod2Color(getSerialDigit1());
-    }
+  // mod1 is fixed for the whole process (depends on digit4, never touched below).
+  // Resolve mod1 vs mod3 first by re-rolling letter4 specifically.
+  while (mod1 == mod3) {
+    s[3] = (char)('A' + random(0, 26));
+    bombSerialNumber = s;
+    mod3 = getMod3Color(getSerialLetter4());
+  }
 
-    // Basically the same but this time looking at module 3 rather than 2, and randomising a letter 
-    while (mod2 == mod3) {
-        // Regenerate the first digit if colides with module 1
-        s[3] = (char)('A' + random(0, 26));
-
-        // update the value if we updated it, 
-        bombSerialNumber = s;
-        mod3 = getMod3Color(getSerialLetter4());
-    }
+  // Now resolve mod2 against both mod1 and mod3 by re-rolling digit1 specifically.
+  while (mod2 == mod1 || mod2 == mod3) {
+    s[5] = (char)('0' + random(0, 10));
+    bombSerialNumber = s;
+    mod2 = getMod2Color(getSerialDigit1());
+  }
 
   return s;
 }
