@@ -1,680 +1,360 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>EX-99 // DIGITAL FIELD MANUAL</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<style>
-/* ═══════════════════════════════════════
-   VARIABLES & DESIGN TOKENS
-═══════════════════════════════════════ */
-:root {
-  --bg:         #0A0A0C;
-  --surface:    #121216;
-  --surface2:   #181822;
-  --surface3:   #22222E;
-  --border:     #262633;
-  --border2:    #363646;
-  --amber:      #F0B429;
-  --amber-dim:  #9A7215;
-  --amber-glow: rgba(240,180,41,0.08);
-  --red:        #D94F3D;
-  --red-dim:    #7A2218;
-  --red-glow:   rgba(217,79,61,0.12);
-  --green:      #2ECC71;
-  --green-glow: rgba(46,204,113,0.15);
-  --blue:       #5B8DB8;
-  --text:       #E2E0D9;
-  --text-dim:   #A09E96;
-  --text-muted: #5C5A72;
-  --mono:       'Courier Prime', 'Courier New', monospace;
-  --stencil:    'Black Ops One', sans-serif;
-  --nav-h:      64px;
-}
-
-/* ═══════════════════════════════════════
-   RESET & FOUNDATION
-═══════════════════════════════════════ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--mono); -webkit-font-smoothing: antialiased; }
-
-/* CRT Scanline Overlay Effect */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
-  pointer-events: none;
-  z-index: 9999;
-}
-
-/* ═══════════════════════════════════════
-   BOOT MONITOR
-═══════════════════════════════════════ */
-#boot {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.boot-logo { font-family: var(--stencil); font-size: clamp(32px, 8vw, 54px); color: var(--amber); letter-spacing: 0.1em; text-align: center; line-height: 1.1; animation: glitch-flicker 0.6s ease both; }
-.boot-sub { font-size: clamp(10px, 2.5vw, 13px); color: var(--text-muted); letter-spacing: 0.15em; text-align: center; margin-top: 12px; }
-.boot-bar-wrap { width: min(300px, 80vw); margin-top: 40px; }
-.boot-bar { height: 4px; background: var(--surface3); overflow: hidden; position: relative; }
-.boot-bar-fill { height: 100%; background: var(--amber); width: 0%; animation: load-bar 1s cubic-bezier(0.1, 0.8, 0.3, 1) 0.2s forwards; box-shadow: 0 0 10px var(--amber); }
-.boot-skip { font-size: 10px; color: var(--text-muted); letter-spacing: 0.1em; margin-top: 24px; text-transform: uppercase; }
-@keyframes load-bar { to { width: 100%; } }
-@keyframes glitch-flicker { 0%, 20%, 60% { opacity: 0; } 10%, 40%, 100% { opacity: 1; } }
-#boot.hide { animation: boot-fade-out 0.2s ease forwards; }
-@keyframes boot-fade-out { to { opacity: 0; transform: scale(1.02); pointer-events: none; } }
-
-/* ═══════════════════════════════════════
-   WORKSTATION FRAMEWORK (DESKTOP INTERFACE)
-═══════════════════════════════════════ */
-.workstation {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: stretch;
-  justify-content: center;
-}
-
-.desk-rail {
-  display: none; /* Hidden on standard mobile layout scopes */
-  flex: 1;
-  max-width: 360px;
-  background: #09090C;
-  border-right: 1px dashed var(--border);
-  padding: 24px 20px;
-  overflow-y: auto;
-  z-index: 10;
-}
-.desk-rail.right { border-right: none; border-left: 1px dashed var(--border); background: #0A0A0E; }
-
-.rail-sticker { background: #161410; border: 1px solid var(--amber-dim); padding: 14px; margin-bottom: 20px; border-radius: 2px; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); }
-.sticker-title { font-size: 11px; font-weight: bold; color: var(--amber); margin-bottom: 6px; letter-spacing: 0.05em; border-bottom: 1px solid rgba(240,180,41,0.2); padding-bottom: 4px; }
-.sticker-body { font-size: 11px; color: #B5B2A9; line-height: 1.5; }
-
-.clipboard-log { background: #121217; border: 1px solid var(--border2); padding: 16px; border-radius: 2px; }
-.log-entry { font-size: 11px; color: var(--text-dim); padding: 8px 0; border-bottom: 1px dashed var(--border); line-height: 1.4; }
-.log-entry:last-child { border: none; }
-.log-tag { color: var(--red); font-weight: bold; }
-
-/* ═══════════════════════════════════════
-   CORE MODULE SIMULATION CELL
-═══════════════════════════════════════ */
-#app {
-  display: none;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  max-width: 480px; /* Locks down mobile layout configuration width */
-  background: var(--bg);
-  position: relative;
-  flex-shrink: 0;
-}
-#app.visible { display: flex; }
-
-/* ═══════════════════════════════════════
-   TOP CONTROL STRIP & ALARM TRIGGERS
-═══════════════════════════════════════ */
-.topbar {
-  flex-shrink: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.topbar-title { font-family: var(--stencil); font-size: 18px; color: var(--amber); letter-spacing: 0.05em; }
-
-.system-status-trigger {
-  background: rgba(46,204,113,0.1);
-  border: 1px solid rgba(46,204,113,0.3);
-  padding: 6px 12px;
-  font-size: 10px;
-  font-weight: bold;
-  color: var(--green);
-  cursor: pointer;
-  border-radius: 2px;
-  letter-spacing: 0.05em;
-  transition: all 0.15s ease;
-}
-.system-status-trigger:hover { background: var(--red-glow); border-color: var(--red); color: #FF7675; }
-
-.live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: 5px; vertical-align: middle; animation: pulse-blink 1.4s infinite; }
-@keyframes pulse-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
-
-/* ═══════════════════════════════════════
-   PAGE CONTAINMENT VIEWPORTS
-═══════════════════════════════════════ */
-.pages-wrap { flex: 1; overflow: hidden; position: relative; width: 100%; }
-.page { position: absolute; inset: 0; overflow-y: auto; padding: 18px 16px 32px; opacity: 0; pointer-events: none; }
-.page.active { opacity: 1; pointer-events: auto; }
-
-/* ═══════════════════════════════════════
-   SYSTEM INTERFACE FOOTER NAVIGATION
-═══════════════════════════════════════ */
-.bottomnav { flex-shrink: 0; height: var(--nav-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; width: 100%; padding-bottom: env(safe-area-inset-bottom, 0); }
-.nav-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; border: none; background: transparent; color: var(--text-muted); padding: 6px 2px; position: relative; }
-.nav-tab::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--amber); transform: scaleX(0); transition: transform 0.15s ease; }
-.nav-tab.active { color: var(--amber); background: var(--amber-glow); }
-.nav-tab.active::before { transform: scaleX(1); }
-.nav-tab.emergency { color: #A88F8C; }
-.nav-tab.emergency.active { color: var(--red); background: var(--red-glow); }
-.nav-tab.emergency.active::before { background: var(--red); }
-.nav-icon { font-size: 16px; }
-.nav-label { font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
-
-/* ═══════════════════════════════════════
-   TYPOGRAPHY & CARD COMPONENTS
-═══════════════════════════════════════ */
-.page-header { margin-bottom: 18px; }
-.page-eyebrow { font-size: 9px; color: var(--text-muted); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
-.page-eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.page-title { font-family: var(--stencil); font-size: clamp(22px, 5.5vw, 28px); color: var(--text); letter-spacing: 0.04em; }
-.page-title span { color: var(--amber); }
-
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
-.card-header { padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
-.card-tag { font-size: 9px; color: var(--amber); background: var(--amber-glow); border: 1px solid var(--amber-dim); padding: 2px 6px; }
-.card-title { font-size: 13px; font-weight: 700; flex: 1; }
-.card-chevron { color: var(--text-muted); font-size: 14px; transition: transform 0.2s ease; }
-.card.open .card-chevron { transform: rotate(90deg); }
-.card-body { display: none; border-top: 1px solid var(--border); padding: 14px; }
-.card.open .card-body, .card.open-default .card-body { display: block; }
-
-p { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 12px; }
-.section-divider { font-size: 9px; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; margin: 18px 0 12px; }
-.section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-.warn { background: var(--red-glow); border: 1px solid var(--red-dim); border-left: 3px solid var(--red); padding: 12px; margin-bottom: 12px; }
-.warn-title { font-size: 10px; color: var(--red); letter-spacing: 0.1em; margin-bottom: 4px; font-weight: 700; }
-.warn p { font-size: 12px; color: #D5C8C6; margin: 0; }
-
-.info { background: var(--amber-glow); border: 1px solid var(--amber-dim); border-left: 3px solid var(--amber); padding: 12px; margin-bottom: 12px; }
-.info-title { font-size: 10px; color: var(--amber); letter-spacing: 0.1em; margin-bottom: 4px; font-weight: 700; }
-.info p { font-size: 12px; color: #D5D2C6; margin: 0; }
-
-.formula { background: var(--surface2); border: 1px solid var(--border2); border-left: 3px solid var(--blue); padding: 12px; margin: 12px 0; font-size: 13px; }
-.formula-label { font-size: 9px; color: var(--blue); letter-spacing: 0.1em; margin-bottom: 4px; }
-
-.steps { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
-.step { display: flex; gap: 12px; align-items: flex-start; }
-.step-n { background: var(--amber); color: #000; font-weight: 700; font-size: 11px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.step-text { font-size: 13px; line-height: 1.5; flex: 1; }
-
-/* ═══════════════════════════════════════
-   TABLE STRUCTURES
-═══════════════════════════════════════ */
-.tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; }
-.tbl th { background: var(--surface2); border: 1px solid var(--border); padding: 8px 10px; color: var(--amber); font-size: 9px; letter-spacing: 0.05em; text-align: left; }
-.tbl td { border: 1px solid var(--border); padding: 9px 10px; }
-.tbl tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
-.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 12px 0; }
-
-.dial-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-.dial-tbl th { background: var(--surface2); border: 1px solid var(--border); padding: 8px 6px; color: var(--amber); font-size: 10px; text-align: center; }
-.dial-tbl td { border: 1px solid var(--border); padding: 9px 6px; text-align: center; white-space: nowrap; }
-.cw  { color: #55EFC4; }
-.ccw { color: #FF7675; }
-
-.w-red    { color: #FF6B6B; font-weight: bold; }
-.w-blue   { color: #74B9FF; font-weight: bold; }
-.w-yellow { color: var(--amber); font-weight: bold; }
-.w-green  { color: #55EFC4; font-weight: bold; }
-.w-black  { color: #AAAAAA; font-weight: bold; }
-
-/* ═══════════════════════════════════════
-   VECTOR SCHEMATIC HARDWARE MAZES
-═══════════════════════════════════════ */
-.maze-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
-.maze-quadrant { background: var(--surface2); border: 1px solid var(--border2); padding: 12px; text-align: center; cursor: pointer; }
-.maze-quadrant.selected { border-color: var(--amber); background: var(--amber-glow); }
-.maze-quadrant-range { font-family: var(--stencil); font-size: 18px; color: var(--text); }
-.maze-quadrant.selected .maze-quadrant-range { color: var(--amber); }
-.maze-quadrant-label { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
-
-.maze-display { margin: 12px 0; background: #0E0E12; border: 1px solid var(--border2); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.maze-prompt { font-size: 11px; color: var(--text-muted); }
-.maze-svg-wrap { display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
-.maze-svg-wrap.visible { display: flex; }
-.maze-svg-wrap svg { width: 100%; max-width: 260px; height: auto; background: #0B0B0E; }
-
-/* ═══════════════════════════════════════
-   MISC STYLING
-═══════════════════════════════════════ */
-.next-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; padding: 14px; background: var(--amber-glow); border: 1px solid var(--amber-dim); color: var(--amber); font-family: var(--stencil); font-size: 14px; cursor: pointer; }
-.big-one { font-family: var(--stencil); font-size: 80px; color: var(--amber); text-align: center; margin: 12px 0; text-shadow: 0 0 20px rgba(240,180,41,0.25); }
-
-#transition-overlay { position: fixed; inset: 0; z-index: 500; pointer-events: none; opacity: 0; }
-#transition-overlay.flash { animation: screen-flash 0.2s ease-out; }
-@keyframes screen-flash { 0% { opacity: 0; } 15% { opacity: 1; background: rgba(217,79,61,0.15); } 100% { opacity: 0; } }
-
-/* ═══════════════════════════════════════
-   MEDIA SCALING RULES (RESPONSIVE)
-═══════════════════════════════════════ */
-@media (min-width: 1025px) {
-  .desk-rail { display: block; }
-  #app {
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-    box-shadow: 0 0 50px rgba(0,0,0,0.8);
-  }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPERATIONAL FIELD MANUAL: EX-99</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+        .active-nav { border-color: #f97316; color: #f97316; font-weight: 900; background-color: rgba(249, 115, 22, 0.05); }
+        .classified-stamp { transform: rotate(-5deg); text-shadow: 0 0 4px rgba(239,68,68,0.4); }
+    </style>
 </head>
-<body>
+<body class="bg-zinc-950 text-zinc-100 font-mono antialiased pb-28 selection:bg-red-900 selection:text-white">
 
-<div id="boot" onclick="skipBoot()">
-  <div class="boot-logo">FIELD MANUAL<br>EX-99</div>
-  <div class="boot-sub">EXPLOSIVE DEVICE DISPOSAL INTERFACE</div>
-  <div class="boot-bar-wrap">
-    <div class="boot-bar"><div class="boot-bar-fill"></div></div>
-  </div>
-  <div class="boot-skip">OVERRIDE SCHEMATIC DECRYPTION PROCESS</div>
-</div>
-
-<div id="transition-overlay"></div>
-
-<div class="workstation">
-
-  <aside class="desk-rail">
-    <div class="rail-sticker">
-      <div class="sticker-title">⚠️ LIABILITY DISCLAIMER BOUNDS</div>
-      <div class="sticker-body">Corporate liability coverage strictly frames individual assignment thresholds. The Expert holds absolute zero physical validation contact. The Operator functions strictly as localized hands. Alterations void insurance payouts.</div>
-    </div>
-    <div class="rail-sticker" style="border-color: var(--red-dim); background: #181010;">
-      <div class="sticker-title" style="color: #FF7675;">🚨 UNPLANNED SYSTEM FAULTS</div>
-      <div class="sticker-body">If display tracking arrays report code failures or synchronization loops, drop dynamic inputs immediately. Manually reference grid tables. Do not alter connection points blindly.</div>
-    </div>
-  </aside>
-
-  <main id="app">
-    <div class="topbar">
-      <div class="topbar-title">EX-99</div>
-      <div class="system-status-trigger" id="masterStatusBanner" onclick="goToPage('emrg')">
-        <span class="live-dot"></span>SYS NOMINAL [TAP IF OVERHEATING]
-      </div>
+    <div class="bg-red-950/40 border-b border-red-900/60 px-4 py-2 text-center text-[10px] tracking-widest text-red-400 flex justify-between items-center uppercase font-sans">
+        <span>[ AUTHORITY: EXECUTIVE ORDER ]</span>
+        <span class="font-bold text-red-500 animate-pulse">DECLASSIFIED SUB-PROP EX-99</span>
+        <span>FOI ACT 1982 REQ</span>
     </div>
 
-    <div class="pages-wrap">
-      <div class="page active" id="page-general">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 00</div>
-          <div class="page-title"><span>OPERATING</span> PROTOCOL</div>
-        </div>
-        <p>Your primary directive is to guide your field asset through the non-destructive neutralization of an active, multi-module explosive device before the clock runs out.</p>
-
-        <div class="card open-default">
-          <div class="card-body">
-            <div class="section-divider">MANDATED SHIFT WORKFLOW</div>
-            <div class="steps">
-              <div class="step"><div class="step-n">1</div><div class="step-text"><strong>Clock In:</strong> Direct the operator to retrieve the master key, insert it, and turn the layout loop ON. Welcome to active field status bounds.</div></div>
-              <div class="step"><div class="step-n">2</div><div class="step-text"><strong>Asset Supervision:</strong> Monitor the countdown display clock persistently. It will not pause, reset, or stretch for beverage breaks.</div></div>
-              <div class="step"><div class="step-n">3</div><div class="step-text"><strong>Clock Out:</strong> Once every separate configuration module registers complete neutralization, the operator must shift the master key to OFF. Premature shutdown leaves an insurance disaster.</div></div>
+    <header class="sticky top-0 z-40 bg-zinc-900 border-b-2 border-red-700 px-4 py-3 flex justify-between items-center shadow-2xl backdrop-blur-md bg-opacity-95">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+                <span class="text-xs font-black tracking-wider text-red-500">CRITICAL STATE MONITOR</span>
             </div>
-            <div class="timer-rule">
-              <div class="timer-text">Manual input handling errors introduce processing line faults, enforcing an immediate <strong>–3 second efficiency tax</strong> against the tracking pool.</div>
-            </div>
-          </div>
+            <h1 class="text-sm font-black text-zinc-200 uppercase tracking-tight">PROJECT FIRECRACKER</h1>
         </div>
-        <button class="next-btn" onclick="goToPage('freq')">INITIALIZE FREQUENCY SCRAMBLING ROUTINE →</button>
-      </div>
+        <button onclick="toggleEmergencyModal(true)" class="bg-red-700 hover:bg-red-600 text-white font-black text-xs uppercase px-3 py-2.5 rounded-md shadow border border-red-500 transition-all active:scale-95">
+            ⚠️ CORE OVERHEATING PROTOCOL
+        </button>
+    </header>
 
-      <div class="page" id="page-emrg">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 04 // EMERGENCY FAULT ISOLATION</div>
-          <div class="page-title"><span>CORE</span> RUNAWAY</div>
-        </div>
-        <div class="warn">
-          <div class="warn-title">CRITICAL RISK ALERT</div>
-          <p>The amateur threat failed to incorporate basic tracking line filters. Disconnecting active sub-modules triggers aggressive voltage spikes capable of forcing quick thermal runaway loops.</p>
-        </div>
-        <div class="card open-default">
-          <div class="card-body">
-            <div class="section-divider">IDENTIFY SYSTEM ALERT STATE</div>
-            <p>If alpha-numeric tracking fields flicker violently, the central LCD throws a <strong>"Core Overheating"</strong> validation error, or a pulsing audio buzzer alert fires, halt current bypassing procedures instantly.</p>
-            <div class="section-divider">STABILISATION PROCEDURE</div>
-            <div class="steps">
-              <div class="step"><div class="step-n">1</div><div class="step-text">Instruct the operator to locate the flat black mesh venting module set on the back right corner of the housing casing.</div></div>
-              <div class="step"><div class="step-n">2</div><div class="step-text">Order them to blow directly into the mesh structure—treat it exactly like a dusty retro gaming cartridge interface.</div></div>
-              <div class="step"><div class="step-n">3</div><div class="step-text">Maintain steady, deep airflow for <strong>5–10 seconds</strong> until system alarms completely collapse before continuing deployment actions.</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <main class="max-w-xl mx-auto px-4 pt-4 space-y-6">
 
-      <div class="page" id="page-freq">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 01 // ECD-02D-A84</div>
-          <div class="page-title"><span>FREQUENCY</span> SCRAMBLING</div>
-        </div>
-        <div class="card open-default">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">1.1</span><span class="card-title">Dual-Dial Processing Array</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>Sum all four digits of the hardware serial label, divide by 5, and leverage the functional arithmetic remainder to isolate your input calibration tracking column:</p>
-            <div class="formula"><div class="formula-label">REMAINDER DECRYPTION INDEX</div><strong>Target Remainder Column = (Digit 1 + Digit 2 + Digit 3 + Digit 4) % 5</strong></div>
-            <div class="tbl-scroll">
-              <table class="dial-tbl">
-                <thead><tr><th>STEP</th><th>REM 0</th><th>REM 1</th><th>REM 2</th><th>REM 3</th><th>REM 4</th></tr></thead>
-                <tbody>
-                  <tr><td>1</td><td><span class="ccw">L 3 CW</span></td><td><span class="cw">R 2 CW</span></td><td><span class="ccw">L 4 CW</span></td><td><span class="cw">R 3 CW</span></td><td><span class="ccw">L 1 CCW</span></td></tr>
-                  <tr><td>2</td><td><span class="cw">R 2 CCW</span></td><td><span class="ccw">L 3 CCW</span></td><td><span class="cw">R 1 CCW</span></td><td><span class="ccw">L 2 CCW</span></td><td><span class="cw">R 4 CW</span></td></tr>
-                  <tr><td>3</td><td><span class="ccw">L 2 CCW</span></td><td><span class="cw">R 1 CW</span></td><td><span class="em">—</span></td><td><span class="cw">R 1 CCW</span></td><td><span class="ccw">L 1 CW</span></td></tr>
-                  <tr><td>4</td><td><span class="em">—</span></td><td><span class="em">—</span></td><td><span class="em">—</span></td><td><span class="ccw">L 2 CW</span></td><td><span class="em">—</span></td></tr>
-                </tbody>
-              </table>
+        <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded-lg relative overflow-hidden flex flex-col gap-1 text-xs text-zinc-500">
+            <div class="absolute right-4 top-2 border-2 border-red-600/40 text-red-500/60 font-sans font-black text-xs tracking-widest uppercase px-2 py-0.5 rounded classified-stamp">
+                DECLASSIFIED<br><span class="text-[9px]">MAY 13, 2026</span>
             </div>
-            <p style="font-size:10px; color:var(--text-muted)">*CW = Clockwise rotation · CCW = Counter-Clockwise rotation · Left/Right encoder dials.</p>
-          </div>
+            <div><span class="text-zinc-400 font-bold">DOCUMENT:</span> OPERATIONAL FIELD MANUAL: EX-99</div>
+            <div><span class="text-zinc-400 font-bold">SUBJECT:</span> EXPLOSIVE DEVICE NEUTRALIZATION & DISPOSAL</div>
+            <div><span class="text-zinc-400 font-bold">REASON:</span> REQUEST UNDER FREEDOM OF INFORMATION ACT 1982</div>
         </div>
-        <div class="card open">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">1.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>Extract the **last numeric digit** of the serial sequence tracking (ABCD-123<u>X</u>) and direct your field asset to pull the respective connection link line:</p>
-            <table class="tbl">
-              <thead><tr><th>FINAL SERIAL INTEGER</th><th>DESIGNATED PATH TERMINATION WIRE</th></tr></thead>
-              <tbody>
-                <tr><td>0 or 5</td><td class="w-red">🟥 RED (Slot 1)</td></tr>
-                <tr><td>1 or 6</td><td class="w-blue">🟦 BLUE (Slot 2)</td></tr>
-                <tr><td>2 or 7</td><td class="w-yellow">🟨 YELLOW (Slot 3)</td></tr>
-                <tr><td>3 or 8</td><td class="w-green">🟩 GREEN (Slot 4)</td></tr>
-                <tr><td>4 or 9</td><td class="w-black">⬛ BLACK (Slot 5)</td></tr>
-              </tbody>
-            </table>
-            <p style="font-size:10px; color:var(--text-muted)">*Plug tracking metrics map consecutively from left to right along the top line interface tier.</p>
-          </div>
-        </div>
-        <button class="next-btn" onclick="goToPage('maze')">PROCEED TO GRID GEOMETRIES →</button>
-      </div>
 
-      <div class="page" id="page-maze">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 02 // MZE-07E-A61</div>
-          <div class="page-title"><span>PATHING</span> PROTOCOL</div>
-        </div>
-        <div class="card open-default">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">2.1</span><span class="card-title">Hardware Maze Alignment Grids</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>The hardware panel omits boundary walls on the Operator screen. Read the **second letter position** within the serial tracking index (A<u>X</u>CD-1234) to select the correct underlying structural grid matrix:</p>
+        <section id="sec-0" class="manual-section space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ RESTRICTED ACCESS ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 0: GENERAL PROTOCOL</h2>
+            </div>
             
-            <div class="maze-grid">
-              <div class="maze-quadrant" id="mq-0" onclick="selectMaze('0')"><div class="maze-quadrant-range">A – G</div><div class="maze-quadrant-label">LAYOUT 0</div></div>
-              <div class="maze-quadrant" id="mq-1" onclick="selectMaze('1')"><div class="maze-quadrant-range">H – N</div><div class="maze-quadrant-label">LAYOUT 1</div></div>
-              <div class="maze-quadrant" id="mq-2" onclick="selectMaze('2')"><div class="maze-quadrant-range">O – U</div><div class="maze-quadrant-label">LAYOUT 2</div></div>
-              <div class="maze-quadrant" id="mq-3" onclick="selectMaze('3')"><div class="maze-quadrant-range">V – Z</div><div class="maze-quadrant-label">LAYOUT 3</div></div>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+                Your primary directive is the non-destructive neutralization of an active, multi-module explosive device within the given time. Failure to comply with procedure will result in a <span class="text-red-400 font-bold underline decoration-red-600">rapid, regrettable increase in room temperature</span>.
+            </p>
+
+            <div class="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800">
+                <div class="p-3">
+                    <span class="text-xs font-black text-orange-500 block mb-1">⚠️ OPERATIONAL RESTRICTION: THE OPERATOR</span>
+                    <p class="text-xs text-zinc-400">Must remain visually and physically oblivious to the contents of this manual. <span class="text-zinc-200 italic">"You're paid to turn dials, not read."</span></p>
+                </div>
+                <div class="p-3">
+                    <span class="text-xs font-black text-orange-500 block mb-1">⚠️ OPERATIONAL RESTRICTION: THE EXPERT</span>
+                    <p class="text-xs text-zinc-400">Must maintain zero physical contact or visual exposure to the device. <span class="text-zinc-200 italic">"You're the brain; don't touch the goods."</span></p>
+                </div>
             </div>
 
-            <div class="maze-display">
-              <div class="maze-svg-wrap" id="maze-0">
-                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
-                  <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
-                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
-                  </g>
-                  <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="60" y1="60" x2="60" y2="150"/><line x1="90" y1="180" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="150"/><line x1="120" y1="150" x2="120" y2="180"/><line x1="150" y1="120" x2="150" y2="150"/><line x1="150" y1="180" x2="150" y2="210"/><line x1="180" y1="150" x2="180" y2="180"/>
-                    <line x1="60" y1="60" x2="90" y2="60"/><line x1="150" y1="60" x2="210" y2="60"/><line x1="90" y1="90" x2="180" y2="90"/><line x1="60" y1="120" x2="90" y2="120"/><line x1="150" y1="120" x2="180" y2="120"/><line x1="60" y1="150" x2="180" y2="150"/><line x1="60" y1="180" x2="90" y2="180"/><line x1="150" y1="180" x2="180" y2="180"/>
-                  </g>
-                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-                </svg>
-              </div>
+            <div class="border border-zinc-800 bg-zinc-900/30 rounded-lg p-3 space-y-3 text-xs">
+                <div>
+                    <span class="font-bold text-zinc-300 block">0.1 INITIATE PROTOCOL</span>
+                    <p class="text-zinc-400">The Operator is required to insert the key and set it to the ON position. Congratulations, you are now actively in danger. The timer is running.</p>
+                </div>
+                <div>
+                    <span class="font-bold text-zinc-300 block">0.2 CONCLUDE PROTOCOL</span>
+                    <p class="text-zinc-400">Once all explosive modules have been successfully neutralized (and only then), the Operator will set the key to the OFF position. Turning the key off prematurely is strongly discouraged by our actuarial department.</p>
+                </div>
+                <div class="bg-red-950/20 border border-red-900/60 p-2.5 rounded text-zinc-300">
+                    <span class="font-black text-red-400 block uppercase mb-0.5">⚠️ THE FUN CLOCK (TIMING CONSIDERATIONS)</span>
+                    <p class="text-zinc-400 mb-2">CRITICAL WARNING: If the timer reaches zero, you have failed. The subsequent explosion is not a feature. It cannot be paused. It cannot be reset. It will not wait for you to refill your coffee.</p>
+                    <span class="text-red-400 font-bold">MISSTEP PENALTY:</span> Incorrect maneuvers by the Operator will result in a 3-second reduction of your remaining existence. Try to avoid this.
+                </div>
+            </div>
+        </section>
 
-              <div class="maze-svg-wrap" id="maze-1">
-                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
-                  <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
-                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
-                  </g>
-                  <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="60" y1="30" x2="60" y2="60"/><line x1="180" y1="30" x2="180" y2="60"/><line x1="60" y1="60" x2="60" y2="90"/><line x1="90" y1="60" x2="90" y2="90"/><line x1="180" y1="60" x2="180" y2="90"/><line x1="60" y1="90" x2="60" y2="120"/><line x1="90" y1="90" x2="90" y2="120"/><line x1="150" y1="90" x2="150" y2="120"/><line x1="180" y1="90" x2="180" y2="120"/><line x1="60" y1="120" x2="60" y2="150"/><line x1="180" y1="120" x2="180" y2="150"/><line x1="60" y1="150" x2="60" y2="180"/><line x1="120" y1="150" x2="120" y2="180"/><line x1="180" y1="150" x2="180" y2="180"/><line x1="120" y1="180" x2="120" y2="210"/>
-                    <line x1="90" y1="60" x2="120" y2="60"/><line x1="120" y1="60" x2="150" y2="60"/><line x1="120" y1="90" x2="150" y2="90"/><line x1="150" y1="90" x2="180" y2="90"/><line x1="90" y1="120" x2="120" y2="120"/><line x1="120" y1="120" x2="150" y2="120"/><line x1="60" y1="150" x2="90" y2="150"/><line x1="120" y1="150" x2="150" y2="150"/><line x1="90" y1="180" x2="120" y2="180"/><line x1="150" y1="180" x2="180" y2="180"/>
-                  </g>
-                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-                </svg>
-              </div>
+        <section id="sec-1" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: ECD-02D-A84 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 1: FREQUENCY SCRAMBLING</h2>
+            </div>
+            <p class="text-xs text-zinc-400">This module, critical for frequency stabilization, is comprised of two Rotary Input Devices and one Calibration Progress Indicator bar.</p>
 
-              <div class="maze-svg-wrap" id="maze-2">
-                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
-                  <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
-                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
-                  </g>
-                  <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="60" y1="30" x2="60" y2="60"/><line x1="120" y1="30" x2="120" y2="60"/><line x1="150" y1="30" x2="150" y2="60"/><line x1="120" y1="60" x2="120" y2="90"/><line x1="60" y1="90" x2="60" y2="120"/><line x1="90" y1="90" x2="90" y2="120"/><line x1="180" y1="90" x2="180" y2="120"/><line x1="60" y1="120" x2="60" y2="150"/><line x1="90" y1="120" x2="90" y2="150"/><line x1="150" y1="120" x2="150" y2="150"/><line x1="60" y1="150" x2="60" y2="180"/><line x1="150" y1="150" x2="150" y2="180"/><line x1="90" y1="180" x2="90" y2="210"/><line x1="180" y1="180" x2="180" y2="210"/>
-                    <line x1="60" y1="60" x2="90" y2="60"/><line x1="150" y1="60" x2="180" y2="60"/><line x1="120" y1="90" x2="150" y2="90"/><line x1="120" y1="120" x2="150" y2="120"/><line x1="150" y1="120" x2="180" y2="120"/><line x1="90" y1="150" x2="120" y2="150"/><line x1="150" y1="150" x2="180" y2="150"/><line x1="180" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="60" y2="180"/><line x1="90" y1="180" x2="120" y2="180"/>
-                  </g>
-                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-                </svg>
-              </div>
-
-              <div class="maze-svg-wrap" id="maze-3">
-                <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="30" y="30" width="180" height="180" fill="#0B0B0E"/>
-                  <g stroke="#1F1F26" stroke-width="1">
-                    <line x1="60" y1="30" x2="60" y2="210"/><line x1="90" y1="30" x2="90" y2="210"/><line x1="120" y1="30" x2="120" y2="210"/><line x1="150" y1="30" x2="150" y2="210"/><line x1="180" y1="30" x2="180" y2="210"/>
-                    <line x1="30" y1="60" x2="210" y2="60"/><line x1="30" y1="90" x2="210" y2="90"/><line x1="30" y1="120" x2="210" y2="120"/><line x1="30" y1="150" x2="210" y2="150"/><line x1="30" y1="180" x2="210" y2="180"/>
-                  </g>
-                  <g stroke="#F0B429" stroke-width="4" stroke-linecap="square">
-                    <line x1="60" y1="60" x2="60" y2="90"/>
-                    <line x1="90" y1="60" x2="90" y2="90"/>
-                    <line x1="180" y1="60" x2="180" y2="90"/>
-                    <line x1="60" y1="90" x2="60" y2="120"/>
-                    <line x1="180" y1="90" x2="180" y2="120"/>
-                    <line x1="90" y1="120" x2="90" y2="150"/>
-                    <line x1="150" y1="120" x2="150" y2="150"/>
-                    <line x1="180" y1="120" x2="180" y2="150"/>
-                    <line x1="60" y1="150" x2="60" y2="180"/>
-                    <line x1="180" y1="150" x2="180" y2="180"/>
-                    <line x1="90" y1="180" x2="90" y2="210"/>
-
-                    <line x1="60" y1="60" x2="90" y2="60"/>
-                    <line x1="120" y1="60" x2="150" y2="60"/>
-                    <line x1="150" y1="60" x2="180" y2="60"/>
-                    <line x1="30" y1="90" x2="60" y2="90"/>
-                    <line x1="90" y1="90" x2="120" y2="90"/>
-                    <line x1="120" y1="90" x2="150" y2="90"/>
-                    <line x1="150" y1="120" x2="180" y2="120"/>
-                    <line x1="60" y1="150" x2="90" y2="150"/>
-                    <line x1="90" y1="150" x2="120" y2="150"/>
-                    <line x1="180" y1="150" x2="210" y2="150"/>
-                    <line x1="60" y1="180" x2="90" y2="180"/>
-                    <line x1="120" y1="180" x2="150" y2="180"/>
-                    <line x1="150" y1="180" x2="180" y2="180"/>
-                  </g>
-                  <rect x="30" y="30" width="180" height="180" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-                </svg>
-              </div>
-              <div class="maze-prompt" id="maze-none-prompt">← SELECT VALID REGISTRATION ROW TO GENERATE DATA</div>
+            <div class="flex bg-zinc-900 p-1 rounded-md border border-zinc-800 font-sans">
+                <button onclick="switchSubTab('s1-calc', this)" class="subtab-btn w-1/2 text-center py-2 text-xs font-black uppercase rounded bg-zinc-800 text-white transition-all">1.1 Dial Calibration</button>
+                <button onclick="switchSubTab('s1-wire', this)" class="subtab-btn w-1/2 text-center py-2 text-xs font-black uppercase rounded text-zinc-500 transition-all">1.2 Terminal Node</button>
             </div>
 
-            <div class="info">
-              <div class="info-title">OPERATIONAL NAVIGATION RULES</div>
-              <p>Relay individual coordinate adjustments step-by-step. `🟥 RED` indexes Live position, `🟦 BLUE` locks target endpoint destination. Wall strikes force instant penalty taxes.</p>
+            <div id="s1-calc" class="subtab-content space-y-3 text-xs">
+                <div class="bg-red-950/10 border border-red-900/40 p-3 rounded text-zinc-400">
+                    <span class="font-bold text-red-400 block mb-1">⚠️ MISMANIPULATION WARNING</span>
+                    Unauthorized or erroneous manipulation, including selection of an incorrect dial or direction of rotation, triggers an automated safety override, advancing countdown timer by 3 seconds per instance.
+                </div>
+                <div class="bg-zinc-900 p-3 rounded-md border border-zinc-800 space-y-2">
+                    <span class="font-bold text-zinc-200 block">SEQUENCE DETERMINATION STEPS:</span>
+                    <p class="text-zinc-400">Once the operator locates and reports the serial number, determine the sequence by:</p>
+                    <ol class="list-decimal list-inside space-y-1 text-zinc-300 font-mono">
+                        <li>Sum the 4 digits of the serial number.</li>
+                        <li>Divide this sum by 5 and take the <span class="text-orange-400 font-bold">remainder</span> (a value of 0-4).</li>
+                        <li>Look the remainder up below and relay each turn to the Operator <span class="text-zinc-200 font-bold">one at a time</span>, alternating dials.</li>
+                    </ol>
+                </div>
+                <div class="border border-zinc-800 rounded-md overflow-hidden">
+                    <table class="w-full text-center border-collapse text-[11px]">
+                        <thead>
+                            <tr class="bg-zinc-900 text-zinc-400 uppercase font-sans border-b border-zinc-800">
+                                <th class="py-2 border-r border-zinc-800">REM</th>
+                                <th class="py-2">TURN SEQUENCE (LEFT DIAL ↔ RIGHT DIAL, ALTERNATING)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-800 text-zinc-300">
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">0</td><td class="px-3 text-left font-mono">L: 3 DOWN → R: 2 LEFT → L: 2 UP</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">1</td><td class="px-3 text-left font-mono">L: 2 RIGHT → R: 3 UP → L: 1 RIGHT</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">2</td><td class="px-3 text-left font-mono">L: 4 DOWN → R: 1 LEFT</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">3</td><td class="px-3 text-left font-mono">L: 3 RIGHT → R: 2 UP → L: 1 LEFT → R: 2 DOWN</td></tr>
+                            <tr><td class="py-2.5 font-bold border-r border-zinc-800 bg-zinc-900/30 text-orange-400 text-xs">4</td><td class="px-3 text-left font-mono">L: 1 UP → R: 4 RIGHT → L: 1 DOWN</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-[10px] text-zinc-500 italic text-right">*Turns alternate starting with the LEFT dial. The LED bar drops one segment after each correctly completed turn.</p>
             </div>
-          </div>
-        </div>
-        <div class="card open">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">2.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>Request the **first numeric identifier** string value (<u>X</u>BCD-1234). Direct hardware severance along the designated lane:</p>
-            <table class="tbl">
-              <thead><tr><th>STARTING INTEGER</th><th>TARGET DISCONNECT CONNECTION ROW</th></tr></thead>
-              <tbody>
-                <tr><td>0 or 1</td><td class="w-blue">🟦 BLUE (Slot 2)</td></tr>
-                <tr><td>2 or 3</td><td class="w-yellow">🟨 YELLOW (Slot 3)</td></tr>
-                <tr><td>4 or 5</td><td class="w-green">🟩 GREEN (Slot 4)</td></tr>
-                <tr><td>6 or 7</td><td class="w-black">⬛ BLACK (Slot 5)</td></tr>
-                <tr><td>8 or 9</td><td class="w-red">🟥 RED (Slot 1)</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <button class="next-btn" onclick="goToPage('encrypt')">PROCEED TO DATA ENCRYPTION BUS →</button>
-      </div>
 
-      <div class="page" id="page-encrypt">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 03 // BTC-03X-P89</div>
-          <div class="page-title"><span>ENCRYPTION</span> VALIDATION</div>
-        </div>
-        <div class="card open-default">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">3.1</span><span class="card-title">Input Sequence Arrays</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>Parse every individual numeric digit from the primary serial code sequentially. Instruct the operator to strike the lower layout buttons rapidly based on the following index criteria:</p>
-            <div class="info">
-              <div class="info-title">SEQUENCE CONVERSION INDEX</div>
-              <p>• <strong>EVEN DIGITS (0, 2, 4, 6, 8):</strong> Press the shared `🟥` <strong>RED Button</strong>.<br>
-              • <strong>ODD DIGITS (1, 3, 5, 7, 9):</strong> Press the shared `🟦` <strong>BLUE Button</strong>.</p>
+            <div id="s1-wire" class="subtab-content hidden space-y-3 text-xs">
+                <p class="text-zinc-400 leading-relaxed">After successfully scrambling frequencies, permanently disable the communication module to stabilize the device. Ask the operator for the <span class="text-zinc-200 font-bold">last digit of the serial number</span>.</p>
+                <p class="text-zinc-500 italic bg-zinc-900/40 p-2 rounded border border-zinc-800/60">Note: Have the operator cut (or pull if your institution is unable to afford wire cutters) the specified wire. Target index denotes the slot when looking at the TOP row from the LEFT.</p>
+                
+                <div class="grid grid-cols-1 gap-1.5 font-mono">
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">0 or 5</strong></span>
+                        <span class="px-3 py-1 bg-red-950 text-red-400 border border-red-800/60 font-bold rounded">RED (Slot 1)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">1 or 6</strong></span>
+                        <span class="px-3 py-1 bg-blue-950 text-blue-400 border border-blue-800/60 font-bold rounded">BLUE (Slot 2)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">2 or 7</strong></span>
+                        <span class="px-3 py-1 bg-amber-950 text-yellow-500 border border-amber-800/60 font-bold rounded">YELLOW (Slot 3)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">3 or 8</strong></span>
+                        <span class="px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-bold rounded">GREEN (Slot 4)</span>
+                    </div>
+                    <div class="bg-zinc-900 p-2.5 rounded border border-zinc-800 flex justify-between items-center">
+                        <span class="text-zinc-400">FINAL DIGIT: <strong class="text-zinc-200">4 or 9</strong></span>
+                        <span class="px-3 py-1 bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold rounded">BLACK (Slot 5)</span>
+                    </div>
+                </div>
             </div>
-            <p><em>Inputs must contain zero hesitation gaps. A single mismatch forces module data flushing.</em></p>
-          </div>
-        </div>
-        <div class="card open">
-          <div class="card-header" onclick="toggleCard(this)"><span class="card-tag">3.2</span><span class="card-title">Terminal Node Severance Matrix</span><span class="card-chevron">›</span></div>
-          <div class="card-body">
-            <p>Identify the **final character letter** within the hardware string notation (ABC<u>X</u>-1234) and sever the respective current tracing trace line:</p>
-            <table class="tbl">
-              <thead><tr><th>LAST STRING LETTER</th><th>TARGET CONNECTION PATH</th></tr></thead>
-              <tbody>
-                <tr><td>A, F, K, P, U, or Z</td><td class="w-yellow">🟨 YELLOW (Slot 3)</td></tr>
-                <tr><td>B, G, L, or W</td><td class="w-green">🟩 GREEN (Slot 4)</td></tr>
-                <tr><td>C, H, M, R, X, or Y</td><td class="w-black">⬛ BLACK (Slot 5)</td></tr>
-                <tr><td>D, I, N, S, or T</td><td class="w-red">🟥 RED (Slot 1)</td></tr>
-                <tr><td>E, J, or O</td><td class="w-blue">🟦 BLUE (Slot 2)</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <button class="next-btn" onclick="goToPage('lockout')">PROCEED TO LOCKOUT OVERRIDE →</button>
-      </div>
+        </section>
 
-      <div class="page" id="page-lockout">
-        <div class="page-header">
-          <div class="page-eyebrow">§ 04 // BRB-02G-J67</div>
-          <div class="page-title"><span>LOCKOUT</span> OVERRIDE</div>
-        </div>
-        <div class="warn">
-          <div class="warn-title">PRE-REQUISITE COMPLIANCE STATUS</div>
-          <p>The override loop routes through the main structural path buttons. Confirm all Section 1, 2, and 3 module traces have been fully detached from active current flows before applying pressure commands.</p>
-        </div>
-        <div class="card open-default">
-          <div class="card-body">
-            <p>Instruct your Operator to observe the countdown display window intently and wait. Strike the faceplate red button input **strictly when a '1' digit actively matches any position within the timer array.**</p>
-            <div class="big-one">1</div>
-            <p>Executing an input action when zero '1' characters match the clock layout establishes an instant liability penalty, prompting immediate termination protocol processing.</p>
-            <div class="info">
-              <div class="info-title">POST-DISARM DISCHARGE SEQUENCE</div>
-              <p>Once bypassed, look back to the **Shift Schedule (§00)** parameters to safely isolate localized field lines and cleanly terminate your field clock session.</p>
+        <section id="sec-2" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: MZE-07E-A61 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 2: PATHING PROTOCOL</h2>
             </div>
-          </div>
+            
+            <div class="bg-orange-950/10 border border-orange-900/40 p-3 rounded text-xs text-zinc-400 space-y-1">
+                <span class="font-bold text-orange-400 block">🔒 HARDWARE LOCK NOTICE</span>
+                <p>The manufacturer locked this module; <span class="text-zinc-200 font-bold">it cannot be bypassed until the Frequency Scrambling module (ECD-02D-A84) has been successfully neutralized</span>.</p>
+            </div>
+
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                Welcome to the blindfolded navigation phase. This module features a grid display containing one <span class="text-red-400 font-bold">Red indicator (the Operator)</span> and one <span class="text-blue-400 font-bold">Blue indicator (the safe zone)</span>. The sadistic architect completely obfuscated the maze structure, rendering the walls invisible to the Operator. 
+            </p>
+
+            <div class="bg-zinc-900 p-3 rounded border border-zinc-800 space-y-2 text-xs">
+                <span class="font-bold text-zinc-200 block">📋 FIELD ARCHITECTURE NOTES:</span>
+                <ul class="list-disc list-inside space-y-1 text-zinc-400">
+                    <li>Movement is strictly limited to cardinal directions. Diagonal traversal is structurally impossible.</li>
+                    <li>Blindly fumbling into walls triggers a localized shock and <span class="text-red-400 font-bold">deducts 3 seconds from your remaining lifespan</span>.</li>
+                    <li>The module is defeated when the indicator reaches the target location, turning <span class="text-emerald-400 font-bold">mercifully green</span>.</li>
+                </ul>
+            </div>
+
+            <div class="bg-zinc-900 p-3 rounded border border-zinc-800 text-xs space-y-2">
+                <span class="font-black text-zinc-300 block uppercase">⚡ TERMINAL DE-ENERGISED PROTOCOL</span>
+                <p class="text-zinc-400">To permanently disable internal electrical pathing, the operator must cut the correct wire based on the <span class="text-zinc-200 font-bold">FIRST digit of the Serial Number</span>:</p>
+                
+                <div class="grid grid-cols-1 gap-1.5 font-mono pt-1">
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 0 or 1</span> <span class="text-blue-400 font-bold uppercase">BLUE (2)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 2 or 3</span> <span class="text-yellow-500 font-bold uppercase">Yellow (3)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 4 or 5</span> <span class="text-emerald-400 font-bold uppercase">Green (4)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 6 or 7</span> <span class="text-zinc-400 font-bold uppercase">Black (5)</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-zinc-950 rounded border border-zinc-800">
+                        <span>FIRST DIGIT: 8 or 9</span> <span class="text-red-400 font-bold uppercase">RED (1)</span>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-zinc-500 italic mt-2">"We are reasonably confident that we have figured out the correct combination... however if these are wrong and you experience a detonation, please report the incident to Sgt. for internal investigation."</p>
+            </div>
+        </section>
+
+        <section id="sec-3" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: BTC-03X-P89 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 3: ENCRYPTION VALIDATION</h2>
+            </div>
+            
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                The architect implemented this sequential input validation system, presumably to <span class="text-zinc-200 font-bold">weed out operators with poor short-term memory</span>. The module consists of a red and a blue button.
+            </p>
+
+            <div class="bg-zinc-900 p-3 rounded-lg border border-zinc-800 text-xs space-y-2">
+                <span class="font-bold text-zinc-200 block">🕹️ INTERACTIVE INPUT SEQUENCE:</span>
+                <p class="text-zinc-400">Process each numerical digit of the device's serial number sequentially:</p>
+                <div class="grid grid-cols-2 gap-2 text-center pt-1 font-bold">
+                    <div class="p-2.5 bg-red-950/40 border border-red-800/80 rounded text-red-400">EVEN NUMBERS<br><span class="text-[10px] text-zinc-400 font-normal">Press RED Button</span></div>
+                    <div class="p-2.5 bg-blue-950/40 border border-blue-800/80 rounded text-blue-400">ODD NUMBERS<br><span class="text-[10px] text-zinc-400 font-normal">Press BLUE Button</span></div>
+                </div>
+                <p class="text-[10px] text-orange-400 font-sans italic mt-1">⚠️ CRITICAL: Inputs must be entered in quick succession and with no hesitation between presses.</p>
+            </div>
+
+            <div class="border border-zinc-800 bg-zinc-900/30 p-3 rounded-md text-xs space-y-2">
+                <span class="font-black text-red-400 block uppercase">⚡ DE-ENERGISATION UNCERTAINTY MATRIX</span>
+                <p class="text-zinc-400 leading-relaxed">
+                    Now feels like the right time to mention that the behavior of the bomb if the operator has cut the wrong wire is unknown. Common speculation is that it would enter into an unstable state which could result in a substantially shortened time until detonation, immediate detonation, or nothing at all. <span class="text-zinc-200 underline font-bold">Don't fumble the one single instruction given.</span>
+                </p>
+
+                <div class="border border-zinc-800 rounded overflow-hidden mt-2">
+                    <div class="bg-zinc-900 px-2 py-1.5 text-[10px] uppercase font-bold border-b border-zinc-800 text-zinc-400">Serial Last Letter → Target Wire</div>
+                    <div class="divide-y divide-zinc-800 text-[11px] font-mono">
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>A, F, K, P, U, Z</span> <span class="text-yellow-500 font-bold">Yellow (3)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-900/50"><span>B, G, L, Q, V, W</span> <span class="text-emerald-400 font-bold">Green (4)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>C, H, M, R, X, Y</span> <span class="text-zinc-400 font-bold">Black (5)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-900/50"><span>D, I, N, S, T</span> <span class="text-red-400 font-bold">RED (1)</span></div>
+                        <div class="p-2 flex justify-between bg-zinc-950"><span>E, J, O</span> <span class="text-blue-400 font-bold">BLUE (2)</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-4" class="manual-section hidden space-y-4">
+            <div class="border-b-2 border-zinc-800 pb-1">
+                <span class="text-xs text-orange-500 font-bold tracking-widest">[ SYSTEM ID: BRB-02G-J67 ]</span>
+                <h2 class="text-xl font-black text-zinc-100 uppercase">SECTION 4: LOCKOUT OVERRIDE</h2>
+            </div>
+
+            <p class="text-xs text-zinc-400 leading-relaxed">
+                This final hurdle lazily reuses the <span class="text-red-500 font-bold uppercase">same Red Button</span> from the Encryption module. Human instinct will scream at the Operator to mash it immediately. <span class="text-red-400 font-black underline">DON'T PRESS IT</span> until all other modules are neutralized — and even then, only on cue.
+            </p>
+
+            <div class="bg-zinc-900 border-2 border-red-900 p-4 rounded-xl space-y-3 text-xs bg-gradient-to-b from-zinc-900 to-red-950/20">
+                <span class="font-black text-red-500 block text-sm uppercase tracking-wide">🛑 FINAL MODULE OPERATION PROTOCOL:</span>
+                <p class="text-zinc-300">Once all other threats have been successfully neutralized, the Operator may engage this final module:</p>
+                
+                <ol class="list-decimal list-inside space-y-2 text-zinc-400 font-mono bg-zinc-950 p-3 rounded border border-zinc-800">
+                    <li>Request the <span class="text-zinc-200 font-bold">third digit of the serial number</span> from the Operator.</li>
+                    <li>Closely monitor the countdown timer window.</li>
+                    <li><span class="text-zinc-100 font-bold">The moment that digit appears anywhere on the timer</span> (any position), press the red button instantly.</li>
+                </ol>
+
+                <p class="text-zinc-400 italic text-[11px] pt-1">
+                    ⚠️ <span class="text-red-400 font-bold">CRITICAL PENALTY:</span> Pressing the button while the target digit is absent from the timer will result in the <span class="text-zinc-200 font-bold">immediate and permanent conclusion of your employment</span>.
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="emergency-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-zinc-900 border-2 border-red-600 w-full max-w-md rounded-xl overflow-hidden shadow-2xl font-mono">
+            <div class="bg-red-600 px-4 py-3 text-white font-black uppercase text-center tracking-wider text-xs">
+                🚨 EMERGENCY RESPONSE PROTOCOL: THERMAL INSTABILITY
+            </div>
+            <div class="p-4 space-y-3 text-xs">
+                <div class="bg-red-950/50 text-red-400 p-2.5 border border-red-900 rounded font-bold">
+                    ALL ACTIVE DEFUSAL OPERATIONS MUST STOP. FAILURE TO STABILISE THE CORE WILL RESULT IN DETONATION.
+                </div>
+                <p class="text-zinc-300">Upon completion of a module, the device may enter a critical thermal state. Indicators of thermal failure include:</p>
+                <ul class="list-disc list-inside text-zinc-400 pl-1 space-y-0.5">
+                    <li>Flickering displays</li>
+                    <li><span class="text-red-400 font-bold">"CORE OVERHEATING"</span> warning display message</li>
+                    <li>A really annoying alarm sound</li>
+                </ul>
+                
+                <div class="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-2">
+                    <span class="text-zinc-200 font-bold block">EMERGENCY STABILISATION ACTIONS:</span>
+                    <ol class="list-decimal list-inside space-y-1.5 text-zinc-400">
+                        <li>Locate the <span class="text-zinc-200 font-bold">circular black vent</span> on the back right of the device.</li>
+                        <li>Operator must direct <span class="text-zinc-200 font-bold">continuous airflow</span> into the vent by blowing.</li>
+                        <li>Maintain airflow for approximately <span class="text-orange-400 font-bold">5-10 seconds</span>, until the beeping stops.</li>
+                    </ol>
+                </div>
+
+                <button onclick="toggleEmergencyModal(false)" class="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase rounded border border-zinc-700 tracking-wider transition-all mt-2 active:scale-95">
+                    Clear Screen & Return to Modules
+                </button>
+            </div>
         </div>
-      </div>
     </div>
 
-    <nav class="bottomnav">
-      <button class="nav-tab active" data-page="general" onclick="goToPage('general')"><span class="nav-icon">📋</span><span class="nav-label">Protocol</span></button>
-      <button class="nav-tab emergency" data-page="emrg" onclick="goToPage('emrg')"><span class="nav-icon">🔥</span><span class="nav-label">Core Runaway</span></button>
-      <button class="nav-tab" data-page="freq" onclick="goToPage('freq')"><span class="nav-icon">📡</span><span class="nav-label">§1 Freq</span></button>
-      <button class="nav-tab" data-page="maze" onclick="goToPage('maze')"><span class="nav-icon">🗺</span><span class="nav-label">§2 Path</span></button>
-      <button class="nav-tab" data-page="encrypt" onclick="goToPage('encrypt')"><span class="nav-icon">🔐</span><span class="nav-label">§3 Validate</span></button>
-      <button class="nav-tab" data-page="lockout" onclick="goToPage('lockout')"><span class="nav-icon">🔴</span><span class="nav-label">§4 Override</span></button>
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-zinc-900/95 border-t-2 border-zinc-800 grid grid-cols-5 py-2 px-1 shadow-2xl backdrop-blur-md">
+        <button onclick="switchSection('sec-0', this)" class="nav-btn active-nav flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent">
+            <span class="text-base mb-0.5">⚙️</span><span>Gen</span>
+        </button>
+        <button onclick="switchSection('sec-1', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">📡</span><span>Sect 1</span>
+        </button>
+        <button onclick="switchSection('sec-2', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🧭</span><span>Sect 2</span>
+        </button>
+        <button onclick="switchSection('sec-3', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🔐</span><span>Sect 3</span>
+        </button>
+        <button onclick="switchSection('sec-4', this)" class="nav-btn flex flex-col items-center py-1 text-[10px] font-bold uppercase tracking-tight transition-all border-t-2 border-transparent text-zinc-500">
+            <span class="text-base mb-0.5">🔴</span><span>Sect 4</span>
+        </button>
     </nav>
-  </main>
 
-  <aside class="desk-rail right">
-    <div class="clipboard-log">
-      <div class="sticker-title" style="border-bottom: 1px dashed var(--border2); padding-bottom: 6px;">📋 WORKSTATION COMPLIANCE LOGS</div>
-      <div class="log-entry"><span class="log-tag">[ERR]</span> Software division decoupled tracing streams incorrectly in reverse. Analyze indices manually.</div>
-      <div class="log-entry"><span class="log-tag">[WARN]</span> Casing hardware shares inputs across validation fields. Dials function across Sections 1 and 2.</div>
-      <div class="log-entry"><span class="log-tag">[INFO]</span> Core N64 troubleshooting trick verified safe by department head. Deploy continuous airflow.</div>
-    </div>
-  </aside>
+    <script>
+        function switchSection(sectionId, element) {
+            document.querySelectorAll('.manual-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active-nav');
+                btn.classList.add('text-zinc-500');
+            });
+            element.classList.add('active-nav');
+            element.classList.remove('text-zinc-500');
+            window.scrollTo(0, 0);
+        }
 
-</div>
+        function switchSubTab(subTabId, element) {
+            const container = element.closest('.manual-section');
+            container.querySelectorAll('.subtab-content').forEach(content => content.classList.add('hidden'));
+            container.querySelector(`#${subTabId}`).classList.remove('hidden');
 
-<script>
-/* ─────────────────────────────────────
-   BOOT ROUTINE MONITOR INTERACTION
-───────────────────────────────────── */
-setTimeout(() => dismissBoot(), 1000);
-function skipBoot() { dismissBoot(); }
-function dismissBoot() {
-  const boot = document.getElementById('boot');
-  if (boot.classList.contains('hide')) return;
-  boot.classList.add('hide');
-  setTimeout(() => {
-    boot.style.display = 'none';
-    document.getElementById('app').classList.add('visible');
-  }, 200);
-}
+            container.querySelectorAll('.subtab-btn').forEach(btn => {
+                btn.classList.remove('bg-zinc-800', 'text-white', 'font-black');
+                btn.classList.add('text-zinc-500');
+            });
+            element.classList.add('bg-zinc-800', 'text-white', 'font-black');
+            element.classList.remove('text-zinc-500');
+        }
 
-/* ─────────────────────────────────────
-   CENTRAL NAVIGATION ENGAGEMENT ROUTINES
-───────────────────────────────────── */
-let currentPage = 'general';
-function goToPage(target) {
-  if (target === currentPage) return;
-
-  const overlay = document.getElementById('transition-overlay');
-  overlay.classList.remove('flash');
-  void overlay.offsetWidth; // Restructure DOM layout thread
-  overlay.classList.add('flash');
-
-  document.getElementById('page-' + currentPage).classList.remove('active');
-  const toEl = document.getElementById('page-' + target);
-  toEl.classList.add('active');
-  toEl.scrollTop = 0;
-
-  document.querySelectorAll('.nav-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.page === target);
-  });
-  
-  // High-priority toggle for warning header element
-  const statusBanner = document.getElementById('masterStatusBanner');
-  if (target === 'emrg') {
-    statusBanner.style.background = 'var(--red-glow)';
-    statusBanner.style.borderColor = 'var(--red)';
-    statusBanner.style.color = '#FF7675';
-    statusBanner.textContent = '⚠️ CORE OVERHEATING TRACK INSTABILITY';
-  } else {
-    statusBanner.style.background = 'rgba(46,204,113,0.1)';
-    statusBanner.style.borderColor = 'rgba(46,204,113,0.3)';
-    statusBanner.style.color = 'var(--green)';
-    statusBanner.textContent = 'SYS NOMINAL [TAP IF OVERHEATING]';
-  }
-
-  currentPage = target;
-}
-
-function toggleCard(header) {
-  header.parentElement.classList.toggle('open');
-}
-
-/* ─────────────────────────────────────
-   VECTOR LAYOUT REGISTRATION HUB
-───────────────────────────────────── */
-function selectMaze(indexKey) {
-  document.querySelectorAll('.maze-quadrant').forEach(q => q.classList.remove('selected'));
-  document.querySelectorAll('.maze-svg-wrap').forEach(m => m.classList.remove('visible'));
-
-  document.getElementById('mq-' + indexKey).classList.add('selected');
-  document.getElementById('maze-' + indexKey).classList.add('visible');
-  document.getElementById('maze-none-prompt').style.display = 'none';
-}
-</script>
+        function toggleEmergencyModal(show) {
+            const modal = document.getElementById('emergency-modal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
